@@ -14,6 +14,7 @@ import { Route as FilaRouteImport } from './routes/fila'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminPainelRouteImport } from './routes/admin.painel'
 
 const PortalRoute = PortalRouteImport.update({
   id: '/portal',
@@ -40,12 +41,18 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminPainelRoute = AdminPainelRouteImport.update({
+  id: '/admin/painel',
+  path: '/admin/painel',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/fila': typeof FilaRoute
   '/portal': typeof PortalRoute
+  '/admin/painel': typeof AdminPainelRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/entrar': typeof EntrarRoute
   '/fila': typeof FilaRoute
   '/portal': typeof PortalRoute
+  '/admin/painel': typeof AdminPainelRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,22 @@ export interface FileRoutesById {
   '/entrar': typeof EntrarRoute
   '/fila': typeof FilaRoute
   '/portal': typeof PortalRoute
+  '/admin/painel': typeof AdminPainelRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/entrar' | '/fila' | '/portal' | '/admin/'
+  fullPaths: '/' | '/entrar' | '/fila' | '/portal' | '/admin/painel' | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/entrar' | '/fila' | '/portal' | '/admin'
-  id: '__root__' | '/' | '/entrar' | '/fila' | '/portal' | '/admin/'
+  to: '/' | '/entrar' | '/fila' | '/portal' | '/admin/painel' | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/entrar'
+    | '/fila'
+    | '/portal'
+    | '/admin/painel'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +92,7 @@ export interface RootRouteChildren {
   EntrarRoute: typeof EntrarRoute
   FilaRoute: typeof FilaRoute
   PortalRoute: typeof PortalRoute
+  AdminPainelRoute: typeof AdminPainelRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -116,6 +133,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/painel': {
+      id: '/admin/painel'
+      path: '/admin/painel'
+      fullPath: '/admin/painel'
+      preLoaderRoute: typeof AdminPainelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -124,6 +148,7 @@ const rootRouteChildren: RootRouteChildren = {
   EntrarRoute: EntrarRoute,
   FilaRoute: FilaRoute,
   PortalRoute: PortalRoute,
+  AdminPainelRoute: AdminPainelRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
