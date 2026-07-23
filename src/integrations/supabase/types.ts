@@ -14,16 +14,120 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      candidates: {
+        Row: {
+          classificacao: number | null
+          comarca_id: string | null
+          cota: Database["public"]["Enums"]["cota_type"]
+          created_at: string
+          id: string
+          nome: string
+          notas: Json
+          ordem_nomeacao: number
+          preferencia_original: string | null
+          pretende_original: string | null
+          situacao_original: string | null
+          status: Database["public"]["Enums"]["intent_status"]
+          updated_at: string
+        }
+        Insert: {
+          classificacao?: number | null
+          comarca_id?: string | null
+          cota?: Database["public"]["Enums"]["cota_type"]
+          created_at?: string
+          id?: string
+          nome: string
+          notas?: Json
+          ordem_nomeacao: number
+          preferencia_original?: string | null
+          pretende_original?: string | null
+          situacao_original?: string | null
+          status?: Database["public"]["Enums"]["intent_status"]
+          updated_at?: string
+        }
+        Update: {
+          classificacao?: number | null
+          comarca_id?: string | null
+          cota?: Database["public"]["Enums"]["cota_type"]
+          created_at?: string
+          id?: string
+          nome?: string
+          notas?: Json
+          ordem_nomeacao?: number
+          preferencia_original?: string | null
+          pretende_original?: string | null
+          situacao_original?: string | null
+          status?: Database["public"]["Enums"]["intent_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidates_comarca_id_fkey"
+            columns: ["comarca_id"]
+            isOneToOne: false
+            referencedRelation: "comarcas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comarcas: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+          vagas_ocupadas: number
+          vagas_total: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+          vagas_ocupadas?: number
+          vagas_total: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+          vagas_ocupadas?: number
+          vagas_total?: number
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          fase: number
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          fase?: number
+          id: number
+          updated_at?: string
+        }
+        Update: {
+          fase?: number
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      choose_comarca: {
+        Args: { _candidate_id: string; _comarca_id: string }
+        Returns: Json
+      }
     }
     Enums: {
-      [_ in never]: never
+      cota_type: "ampla" | "pcd" | "pne"
+      intent_status: "pendente" | "sim" | "nao" | "talvez"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +254,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      cota_type: ["ampla", "pcd", "pne"],
+      intent_status: ["pendente", "sim", "nao", "talvez"],
+    },
   },
 } as const
