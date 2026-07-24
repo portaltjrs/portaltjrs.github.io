@@ -60,11 +60,18 @@
   .ornament-corner.tr { top: 14px; right: 14px; border-left: none; border-bottom: none; }
   .ornament-corner.bl { bottom: 14px; left: 14px; border-right: none; border-top: none; }
   .ornament-corner.br { bottom: 14px; right: 14px; border-left: none; border-top: none; }
-  .search-results { max-height: 280px; overflow-y: auto; }
-  .search-result-item:hover { background: rgba(59,130,246,0.1); }
+  .search-results { max-height: 320px; overflow-y: auto; border-radius: 12px; }
+  .search-result-item:hover { background: rgba(59,130,246,0.12); }
   .progress-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
   .progress-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
   .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* Dropdown overlay - must be above everything */
+  #searchResultsWrap { position: relative; }
+  #searchResults { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 9999; background: #1e293b; border: 1.5px solid #334155; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); max-height: 340px; overflow-y: auto; }
+  /* Mobile nav improvements */
+  @media (max-width: 640px) {
+    .input-field { font-size: 16px; } /* prevent iOS zoom */
+  }
 </style>
 </head>
 <body class="min-h-screen">
@@ -2663,14 +2670,19 @@ function parseData() {
     }
   });
 
+  const seenOrdens = new Set();
   const candidates = [];
   document.getElementById('rawDataCSV').textContent.trim().split('\n')
-    .filter(l => l.trim() && !l.startsWith('0 |'))
+    .filter(l => l.trim())
     .forEach(line => {
       const p = line.split('|').map(x => x.trim());
       if (p.length >= 5) {
-        const [, classificacao, ordemStr, nome, cotaRaw] = p;
+        const [, , ordemStr, nome, cotaRaw] = p;
         const ordem = parseInt(ordemStr);
+        if (!ordem || ordem <= 0 || seenOrdens.has(ordem)) return; // deduplication by ordemGeral
+        seenOrdens.add(ordem);
+        // Use col[1] as classificacao (the numeric code like 152, 1453, etc.)
+        const classificacao = p[1];
         const cota = cotaRaw.startsWith('PCD') ? 'PCD' : cotaRaw.startsWith('PNE') ? 'PN' : 'Ampla';
         candidates.push({ id: 'c'+ordem, classificacao, nome, cota, classificacaoGeral: ordem, status: oldIntentions[nome] || 'Pendente', telefone: '', email: '', comarcaEscolhida: null });
       }
@@ -2686,6 +2698,7 @@ function parseData() {
       if (saved.phases) state.phases = saved.phases;
     }
   } catch(e) {}
+  candidates.sort((a,b) => a.classificacaoGeral - b.classificacaoGeral);
   return { candidates, comarcas: [], phases: { phase1Open: true, phase2Open: false } };
 }
 
@@ -2789,7 +2802,7 @@ function renderHome() {
     
     <section class="relative -mt-4 z-10 px-4 sm:px-6 lg:px-8">
       <div class="max-w-2xl mx-auto">
-        <div class="card-elevated p-6 sm:p-8 relative overflow-hidden">
+        <div class="card-elevated p-6 sm:p-8 relative">
           <div class="ornament-corner tl"></div><div class="ornament-corner tr"></div><div class="ornament-corner bl"></div><div class="ornament-corner br"></div>
           <div class="text-center mb-6">
             <div class="inline-flex items-center gap-3 text-xs text-slate-500 uppercase tracking-wider font-semibold mb-3"><span class="w-8 h-px bg-[#c9a961]"></span>Acesso Individual<span class="w-8 h-px bg-[#c9a961]"></span></div>
@@ -2798,11 +2811,13 @@ function renderHome() {
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Buscar por nome ou número de classificação</label>
-            <div class="relative">
-              <input type="text" id="candidateSearch" class="input-field pr-10" placeholder="Digite seu nome..." autocomplete="off">
-              <svg class="absolute right-3 top-3.5 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <div id="searchResultsWrap">
+              <div class="relative">
+                <input type="text" id="candidateSearch" class="input-field pr-12" placeholder="Digite seu nome completo..." autocomplete="off" autocapitalize="words">
+                <svg class="absolute right-3 top-3.5 w-5 h-5 text-slate-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              </div>
+              <div id="searchResults" class="hidden"></div>
             </div>
-            <div id="searchResults" class="hidden absolute z-20 mt-1 w-full max-w-2xl bg-slate-800 border border-slate-700 rounded-xl shadow-2xl search-results"></div>
           </div>
         </div>
         
@@ -2839,21 +2854,40 @@ function attachHomeEvents() {
   const results = document.getElementById('searchResults');
   if (!search) return;
   search.addEventListener('input', e => {
-    const q = e.target.value.toLowerCase().trim();
-    if (q.length < 2) { results.classList.add('hidden'); return; }
-    const matches = state.candidates.filter(c => c.nome.toLowerCase().includes(q) || String(c.classificacao).includes(q) || String(c.classificacaoGeral).includes(q)).slice(0, 30);
-    if (!matches.length) { results.innerHTML = '<div class="p-3 text-sm text-slate-500">Nenhum candidato encontrado.</div>'; results.classList.remove('hidden'); return; }
+    const q = e.target.value.trim();
+    if (q.length < 2) { results.classList.add('hidden'); results.innerHTML = ''; return; }
+    const ql = q.toLowerCase();
+    const matches = state.candidates.filter(c =>
+      c.nome.toLowerCase().includes(ql) ||
+      String(c.classificacao).includes(q) ||
+      String(c.classificacaoGeral).includes(q)
+    ).slice(0, 25);
+    if (!matches.length) {
+      results.innerHTML = '<div class="px-4 py-5 text-sm text-slate-500 text-center">Nenhum candidato encontrado.</div>';
+      results.classList.remove('hidden');
+      return;
+    }
     results.innerHTML = matches.map(c => `
-      <div class="search-result-item p-3 cursor-pointer border-b border-slate-700/60 last:border-0 flex items-center justify-between gap-2 transition-colors" onclick="initCandidateAuth('${c.id}')">
-        <div class="min-w-0">
-          <div class="font-medium text-sm truncate text-slate-200">${c.nome}</div>
-          <div class="text-xs text-slate-500 mt-0.5">Class. ${c.classificacao} · Ordem ${c.classificacaoGeral}º · ${c.cota} <span class="${c.telefone?'text-green-500':'text-blue-400'}">${c.telefone?'🔒 Cadastrado':'🆕 Primeiro acesso'}</span></div>
+      <div class="search-result-item px-4 py-3 cursor-pointer border-b border-slate-700/40 last:border-0 flex items-center justify-between gap-3 transition-colors active:bg-blue-900/20" onclick="initCandidateAuth('${c.id}'); document.getElementById('searchResults').classList.add('hidden');">
+        <div class="min-w-0 flex-1">
+          <div class="font-semibold text-sm text-slate-100 truncate">${c.nome}</div>
+          <div class="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+            <span>Ordem ${c.classificacaoGeral}º</span>
+            <span class="text-slate-700">·</span>
+            <span>${c.cota === 'Ampla' ? 'Ampla Concorrência' : c.cota}</span>
+            <span class="${c.telefone ? 'text-green-400' : 'text-blue-400'} font-semibold ml-1">${c.telefone ? '🔒' : '🆕'}</span>
+          </div>
         </div>
-        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <svg class="w-5 h-5 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       </div>`).join('');
     results.classList.remove('hidden');
   });
-  document.addEventListener('click', e => { if (!search.contains(e.target) && !results.contains(e.target)) results.classList.add('hidden'); });
+  // Close on outside click or ESC
+  document.addEventListener('click', e => {
+    const wrap = document.getElementById('searchResultsWrap');
+    if (wrap && !wrap.contains(e.target)) results.classList.add('hidden');
+  });
+  search.addEventListener('keydown', e => { if (e.key === 'Escape') { results.classList.add('hidden'); search.blur(); } });
 }
 
 // ============================================================
@@ -3101,26 +3135,33 @@ function renderDashboard() {
       
       <div class="card-elevated p-5 sm:p-6 mb-5">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <div><h3 class="font-display text-lg font-bold text-white">Lista Completa de Candidatos</h3><p class="text-xs text-slate-500 mt-0.5">${filtered.length} resultado(s)</p></div>
-          <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-            <input type="text" id="dashSearch" value="${sq}" placeholder="Buscar por nome..." class="text-xs border border-slate-700 rounded-lg px-3 py-2 bg-slate-800 text-slate-300 w-full sm:w-44" oninput="setFilter('search',this.value)">
-            <select onchange="setFilter('cota',this.value)" class="text-xs border border-slate-700 rounded-lg px-2 py-2 bg-slate-800 text-slate-300">
-              <option value="Todos" ${dashboardFilters.cota==='Todos'?'selected':''}>Todas as Cotas</option>
-              <option value="Ampla" ${dashboardFilters.cota==='Ampla'?'selected':''}>Ampla Conc.</option>
-              <option value="PN" ${dashboardFilters.cota==='PN'?'selected':''}>Pretos/Negros (PN)</option>
-              <option value="PCD" ${dashboardFilters.cota==='PCD'?'selected':''}>PCD</option>
-            </select>
-            <select onchange="setFilter('intencao',this.value)" class="text-xs border border-slate-700 rounded-lg px-2 py-2 bg-slate-800 text-slate-300">
-              <option value="Todos" ${dashboardFilters.intencao==='Todos'?'selected':''}>Todas as Intenções</option>
-              <option value="Sim" ${dashboardFilters.intencao==='Sim'?'selected':''}>✓ Sim</option>
-              <option value="Nao" ${dashboardFilters.intencao==='Nao'?'selected':''}>✕ Não</option>
-              <option value="Talvez" ${dashboardFilters.intencao==='Talvez'?'selected':''}>? Talvez</option>
-              <option value="Pendente" ${dashboardFilters.intencao==='Pendente'?'selected':''}>⏳ Pendente</option>
-            </select>
+          <div><h3 class="font-display text-lg font-bold text-white">Lista Completa de Candidatos</h3><p id="dashResultCount" class="text-xs text-slate-500 mt-0.5">${filtered.length} resultado(s)</p></div>
+          <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div class="relative flex-1 sm:flex-none">
+              <input type="text" id="dashSearch" value="${sq}" placeholder="Buscar candidato..." autocomplete="off"
+                class="text-sm border border-slate-700 rounded-lg pl-9 pr-3 py-2.5 bg-slate-800/80 text-slate-200 w-full sm:w-52 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+                oninput="filterDashboardTable(this.value)">
+              <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-slate-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <div class="flex gap-2">
+              <select onchange="setFilter('cota',this.value)" class="text-xs border border-slate-700 rounded-lg px-2 py-2.5 bg-slate-800 text-slate-300 flex-1 sm:flex-none focus:outline-none focus:border-blue-500">
+                <option value="Todos" ${dashboardFilters.cota==='Todos'?'selected':''}>Todas as Cotas</option>
+                <option value="Ampla" ${dashboardFilters.cota==='Ampla'?'selected':''}>Ampla Conc.</option>
+                <option value="PN" ${dashboardFilters.cota==='PN'?'selected':''}>Pretos/Negros</option>
+                <option value="PCD" ${dashboardFilters.cota==='PCD'?'selected':''}>PCD</option>
+              </select>
+              <select onchange="setFilter('intencao',this.value)" class="text-xs border border-slate-700 rounded-lg px-2 py-2.5 bg-slate-800 text-slate-300 flex-1 sm:flex-none focus:outline-none focus:border-blue-500">
+                <option value="Todos" ${dashboardFilters.intencao==='Todos'?'selected':''}>Todas Intenções</option>
+                <option value="Sim" ${dashboardFilters.intencao==='Sim'?'selected':''}>✓ Sim</option>
+                <option value="Nao" ${dashboardFilters.intencao==='Nao'?'selected':''}>✕ Não</option>
+                <option value="Talvez" ${dashboardFilters.intencao==='Talvez'?'selected':''}>? Talvez</option>
+                <option value="Pendente" ${dashboardFilters.intencao==='Pendente'?'selected':''}>⏳ Pendente</option>
+              </select>
+            </div>
           </div>
         </div>
         <div class="table-responsive max-h-[600px] overflow-y-auto rounded-xl border border-slate-700">
-          <table class="w-full text-sm">
+          <table id="dashCandidateTable" class="w-full text-sm">
             <thead class="sticky top-0 bg-slate-800 z-10">
               <tr class="text-left text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-700">
                 <th class="py-3 px-3 font-semibold">Ordem</th>
@@ -3180,6 +3221,34 @@ function renderCotaReport(cotaType, title) {
 }
 
 function setFilter(type, value) { dashboardFilters[type] = value; render(); }
+
+// Partial DOM update for dashboard table search (no full re-render)
+function filterDashboardTable(searchVal) {
+  dashboardFilters.search = searchVal;
+  const sq = searchVal.toLowerCase().trim();
+  const tbody = document.querySelector('#dashCandidateTable tbody');
+  const countEl = document.getElementById('dashResultCount');
+  if (!tbody) { render(); return; } // fallback
+  const cota = dashboardFilters.cota;
+  const intencao = dashboardFilters.intencao;
+  const filtered = state.candidates.filter(c => {
+    if (cota !== 'Todos' && c.cota !== cota) return false;
+    if (intencao !== 'Todos' && c.status !== intencao) return false;
+    if (sq && !c.nome.toLowerCase().includes(sq) && !String(c.classificacaoGeral).includes(sq)) return false;
+    return true;
+  }).sort((a,b) => a.classificacaoGeral - b.classificacaoGeral);
+  if (countEl) countEl.textContent = `${filtered.length} resultado(s)`;
+  tbody.innerHTML = filtered.map(c => `<tr class="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors">
+    <td class="py-3 px-3 font-mono text-xs text-slate-500">${c.classificacaoGeral}º</td>
+    <td class="py-3 px-3 font-medium ${c.status==='Nao'?'declined':''} max-w-[140px] sm:max-w-none">
+      <div class="truncate">${c.nome}</div>
+      <div class="text-[10px] text-slate-600 sm:hidden mt-0.5">${c.cota}</div>
+    </td>
+    <td class="py-3 px-2 hidden sm:table-cell"><span class="badge-cota-${c.cota.toLowerCase()} px-2 py-0.5 rounded text-[10px] font-medium">${c.cota}</span></td>
+    <td class="py-3 px-2"><span class="status-${c.status.toLowerCase()} px-2 py-0.5 rounded text-[10px] font-medium">${c.status==='Nao'?'Não':c.status}</span></td>
+    <td class="py-3 px-2 text-xs hidden md:table-cell ${c.comarcaEscolhida?'text-blue-400 font-semibold':'text-slate-600'}">${c.comarcaEscolhida||'—'}</td>
+  </tr>`).join('');
+}
 
 function renderCharts() {
   if (intentionsChart) { intentionsChart.destroy(); intentionsChart = null; }
