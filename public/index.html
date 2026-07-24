@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TJRS · Portal de Chamada | Oficial de Justiça</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,900&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #0f172a; --bg-darker: #020617; --bg-card: #1e293b; --bg-input: #0f172a;
+    --border: #334155; --text-main: #f1f5f9; --text-muted: #94a3b8;
+    --blue: #3b82f6; --blue-light: #60a5fa; --gold: #c9a961;
+    --green: #22c55e; --red: #ef4444; --amber: #f59e0b;
+  }
+  * { -webkit-font-smoothing: antialiased; }
+  body { font-family: 'Manrope', sans-serif; background-color: var(--bg-dark); color: var(--text-main); overflow-x: hidden; }
+  .font-display { font-family: 'Fraunces', serif; letter-spacing: -0.01em; }
+  .bg-navy-gradient { background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e293b 100%); }
+  .pattern-dots { background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 24px 24px; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+  .card-elevated { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4), 0 4px 6px -2px rgba(0,0,0,0.2); }
+  .btn-primary { background: linear-gradient(135deg, var(--blue) 0%, #2563eb 100%); color: white; font-weight: 600; transition: all 0.2s ease; }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--text-main); border: 1px solid var(--border); font-weight: 500; transition: all 0.2s ease; }
+  .btn-ghost:hover { background: var(--bg-darker); border-color: var(--text-muted); }
+  .input-field { background: var(--bg-input); border: 1.5px solid var(--border); border-radius: 8px; padding: 12px 16px; font-size: 15px; transition: all 0.2s ease; width: 100%; font-family: inherit; color: var(--text-main); }
+  .input-field:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+  .input-field::placeholder { color: #64748b; }
+  .declined { text-decoration: line-through; opacity: 0.45; color: var(--text-muted); }
+  @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fade-in 0.4s ease-out forwards; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg-darker); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  .toast { animation: toast-slide 0.3s ease-out; }
+  @keyframes toast-slide { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .phase-step-active { background: var(--blue); color: white; }
+  .phase-step-pending { background: var(--border); color: var(--text-muted); }
+  .nav-link { position: relative; padding: 8px 14px; color: var(--text-muted); font-weight: 500; font-size: 14px; transition: color 0.2s ease; cursor: pointer; }
+  .nav-link:hover { color: white; }
+  .nav-link.active { color: white; }
+  .nav-link.active::after { content: ''; position: absolute; bottom: -2px; left: 14px; right: 14px; height: 2px; background: var(--gold); border-radius: 1px; }
+  .badge-cota-ampla { background: #1e3a8a; color: #bfdbfe; }
+  .badge-cota-pcd { background: #78350f; color: #fde68a; }
+  .badge-cota-pn { background: #14532d; color: #bbf7d0; }
+  .status-pendente { background: #334155; color: #cbd5e1; }
+  .status-sim { background: #14532d; color: #86efac; }
+  .status-nao { background: #7f1d1d; color: #fca5a5; }
+  .status-talvez { background: #78350f; color: #fcd34d; }
+  .queue-row-current { background: linear-gradient(90deg, rgba(34, 197, 94, 0.1), transparent); border-left: 3px solid var(--green); }
+  .ornament-corner { position: absolute; width: 32px; height: 32px; border: 1px solid var(--gold); opacity: 0.3; pointer-events: none; }
+  .ornament-corner.tl { top: 14px; left: 14px; border-right: none; border-bottom: none; }
+  .ornament-corner.tr { top: 14px; right: 14px; border-left: none; border-bottom: none; }
+  .ornament-corner.bl { bottom: 14px; left: 14px; border-right: none; border-top: none; }
+  .ornament-corner.br { bottom: 14px; right: 14px; border-left: none; border-top: none; }
+  .search-results { max-height: 280px; overflow-y: auto; }
+  .search-result-item:hover { background: rgba(59, 130, 246, 0.1); }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Planilha antiga (usada apenas para extrair as respostas Sim/Não/Talvez) -->
+<script type="text/plain" id="rawDataOld">
+1975 1 SIM SIM EZEQUIEL SILVA DA SILVA 22 26 6 54 Aprovado Sim 47 Próxima chamada a partir daqui
+1453 2 NÃO SIM REGES MAR ASSUNÇÃO GOMES 20 31 6 57 Aprovado 55
+2013 3 SIM NÃO PAULO HENRIQUE DA SILVA OLIVEIRA 18 29 6 53 Aprovado Sim 57
+1466 4 NÃO SIM GRAZIELE RIBEIRO SOUZA DIAS 22 30 5 57 Aprovado 60
+1479 5 NÃO SIM GABRIELE DE MORAIS PUREZA 22 30 5 57 Aprovado Sim 65
+2289 6 SIM NÃO MICHELE TORRES ELIZALDE 20 25 5 50 Aprovado 67
+1487 7 NÃO SIM AILÊ FAGUNDES DA SILVA 21 30 6 57 Aprovado Talvez 70
+152 8 NÃO NÃO LUIZ OTÁVIO SILVA AVILA 27 36 5 68 Aprovado Não 73
+1588 9 NÃO SIM LEONARDO BARROS CRUZ 19 31 6 56 Aprovado Não Brigada Militar 07/2024 75
+154 10 NÃO NÃO GERALDO KLAFKE JANISCH 26 36 6 68 Aprovado . 76
+155 11 NÃO NÃO MARIA CAROLINA GUARIENTI PINTO 26 36 6 68 Aprovado Analista PGERS 77
+156 12 NÃO NÃO LAURA STEFENON FACHINI 26 36 6 68 Aprovado Não Analista PGERS 78
+157 13 NÃO NÃO GIOVANO JOSÉ FELIPIN 26 36 6 68 Aprovado Talvez Analista PGERS 79
+1605 14 NÃO SIM LETICIA MARQUES PEREIRA 21 30 5 56 Aprovado Sim Porto Alegre, Região Metropolitana, Litoral ou Serra 80
+158 15 NÃO NÃO EDUARDO VINHAS FAGUNDES 26 36 6 68 Aprovado Sim Agente Pen. SUSEPE 81
+159 16 NÃO NÃO GABRIELA FANTINEL SILVEIRA 25 36 7 68 Aprovado . 82
+160 17 NÃO NÃO HAYCHA ABRAHAO SANTOS DE OLIVEIRA 25 36 7 68 Aprovado . 83
+161 18 NÃO NÃO ALEX ANTUNES PIRES 25 36 7 68 Aprovado Sim . 84
+1637 19 NÃO SIM CARLOS EDUARDO BARBOZA PENHA 21 29 6 56 Aprovado Analista Jurídico PGE RS 85
+162 20 NÃO NÃO CRISTIAN ALEXANDRE MEDEIROS ROSA 24 36 8 68 Aprovado Sim Região Metropolitana e Vale do Sinos 86
+163 21 NÃO NÃO ALESSANDRA RODRIGUES OLIVEIRA 27 35 6 68 Aprovado Sim Pelotas, Camaquã ou Região da Campanha 87
+164 22 NÃO NÃO YURI SOARES DE ABREU 27 35 6 68 Aprovado Sim Qualquer comarca. 88
+165 23 NÃO NÃO DÊNIS NEUTZLING BUCHWEITZ 26 35 7 68 Aprovado Analista PGERS 89
+1646 24 NÃO SIM VITORIA FARIAS CORREA 21 29 6 56 Aprovado Talvez . 90
+166 25 NÃO NÃO YGOR DE CASTRO SOARES 26 35 7 68 Aprovado Sim Região Sul - atualmente Analista DPERS 91
+167 26 NÃO NÃO ANDRÉ ALVES VERONEZ 26 35 7 68 Aprovado . 92
+168 27 NÃO NÃO RICARDO DANIEL SILVA DE SOUZA 28 33 7 68 Aprovado . 93
+169 28 NÃO NÃO VITÓRIA MARIA CARVALHO SANTOS 27 33 8 68 Aprovado 94
+1671 29 NÃO SIM FRANCIELE CAIPU VIEIRA 22 28 6 56 Aprovado . 95
+170 30 NÃO NÃO LIS ENGEL CÔRTES SILVA 22 40 5 67 Aprovado AJAJ TRT18 96
+171 31 NÃO NÃO JASSANA LEONI RAMOS 21 40 6 67 Aprovado sim Aguardando nomeação OJA TJSC. (Qualquer Comarca) 97
+172 32 NÃO NÃO DIEISON GIRARDI 21 40 6 67 Aprovado Sim Aguardando nomeação OJA TJSC. (Qualquer Comarca) 98
+173 33 NÃO NÃO AUGUSTO DE OLIVEIRA GOMES PACHECO 20 40 7 67 Aprovado Sim Qualquer Comarca 99
+1749 34 NÃO SIM MARLOS ALVES PRATES 20 30 5 55 Aprovado . 100
+174 35 NÃO NÃO THOMÁS ANTONIO DIAS BORTOLINI 23 39 5 67 Aprovado Classe O Lotado em CARAZINHO
+175 36 NÃO NÃO FERNANDA BERNARDI 23 39 5 67 Aprovado .
+176 37 NÃO NÃO ÉVERTON LUIS KÖRBES 22 39 6 67 Aprovado .
+177 38 NÃO NÃO ANTONIO DE ARAÚJO FILHO 22 39 6 67 Aprovado Talvez
+1811 39 NÃO SIM REJANE ILHA PINHEIRO 21 28 6 55 Aprovado Sim vale do Taquari/qq comarca disponível
+178 40 NÃO NÃO GIULIA TITTON 24 38 5 67 Aprovado AJ PGE desde 11/2022 / Aprovada Promotora MP/RS
+179 41 NÃO NÃO LUCAS LEAL BRAGA 24 38 5 67 Aprovado AJAJ TJES
+180 42 NÃO NÃO CLAUDIA MARIA CAMARGO GESSE TEIXEIRA 24 38 5 67 Aprovado Talvez AJAJ TRT9
+181 43 NÃO NÃO GABRIELA DE OLIVEIRA ANTUNES 23 38 6 67 Aprovado Sim Região Sul
+1867 44 NÃO SIM WARLEY MOREIRA DA CONCEIÇÃO 18 31 5 54 Aprovado .
+182 45 NÃO NÃO TANISE PEIXOTO CARLI 23 38 6 67 Aprovado
+184 46 NÃO NÃO VÍTOR BOLZAN ARROQUE 23 38 6 67 Aprovado Nomeado AJ-PGE/RS setembro/2024
+185 47 NÃO NÃO MUNIQUE PAIM 22 38 7 67 Aprovado Sim Qualquer comarca
+183 48 NÃO NÃO EVERTON FRANCIS PEREIRA MADRUGA 23 38 6 67 Aprovado Sim
+1874 49 NÃO SIM SAMER ALEXSANDER DE OLIVEIRA PORT 19 30 5 54 Aprovado Talvez
+186 50 NÃO NÃO VANDERLEI ROWER 22 38 7 67 Aprovado Aguardando nomeação OJA TJSC
+187 51 NÃO NÃO TARSSIO MANGANELI ZUQUETO 22 38 7 67 Aprovado Sim qualquer comarca
+188 52 NÃO NÃO RIELI FACHINI 22 38 7 67 Aprovado
+189 53 NÃO NÃO KELVIN ALEX SANDER BORBA DO PRADO 22 38 7 67 Aprovado
+1903 54 NÃO SIM EVELLYN COSTA PIRES 19 29 6 54 Aprovado Sim QUalquer comarca
+190 55 NÃO NÃO LUCAS BOEIRA PEREIRA 22 38 7 67 Aprovado Sim Vacaria
+191 56 NÃO NÃO SINARA FERNANDA KOCHENBORGER 22 38 7 67 Aprovado Sim qualquer comarca
+192 57 NÃO NÃO ISABELA FACCIN VERNIER 25 37 5 67 Aprovado
+193 58 NÃO NÃO LUCAS VINICIUS LIMA DA SILVEIRA DE AZEVEDO 24 37 6 67 Aprovado Sim
+1950 59 NÃO SIM ALINE DA SILVA OLIVEIRA 21 27 6 54 Aprovado .
+194 60 NÃO NÃO JORDANA BESSI DA SILVA BARCELLOS 24 37 6 67 Aprovado Não Capitão BM-RS
+194 61 NÃO NÃO DANIEL FABER CARAFFINI 24 37 6 67 Aprovado Sim Litoral Norte/Serra
+195 62 NÃO NÃO GRACIANA KEMP MAAS 24 37 6 67 Aprovado
+196 63 NÃO NÃO BRUNO MÜLLER SOARES 24 37 6 67 Aprovado Sim Qualquer comarca
+1973 64 NÃO SIM DIÓGENES QUEIROZ DE MORAES 22 26 6 54 Aprovado Sim .
+197 65 NÃO NÃO FELIPE CHAVES BARTOLLO 24 37 6 67 Aprovado
+198 66 NÃO NÃO AMANDA RAFAELA CAVALLIN 24 37 6 67 Aprovado Talvez
+199 67 NÃO NÃO ANDRÉ RAMBO BATISTELLA 24 37 6 67 Aprovado
+200 68 NÃO NÃO JANAINA NELPIS MATTOS TEIXEIRA 23 37 7 67 Aprovado
+2016 69 NÃO SIM ANA PAULA DOS SANTOS RAMIRES 18 29 6 53 Aprovado SIM Qualquer Comarca
+201 70 NÃO NÃO CAMILA STUDZINSKI DA SILVA BARBOSA 23 37 7 67 Aprovado Talvez noroeste - atualmente técnica TJSC
+202 71 NÃO NÃO MATHEUS MASSOTTI THOMAS 23 37 7 67 Aprovado Sim Vale do Rio Pardo, Região Metropolitana, Litoral
+203 72 NÃO NÃO ROSINERI VIEIRA BARROS 23 37 7 67 Aprovado
+204 73 NÃO NÃO JOÃO PEDRO SARTORI HEYDT 23 37 7 67 Aprovado
+2066 74 NÃO SIM EDNA DOS SANTOS SILVA 22 26 5 53 Aprovado
+205 75 NÃO NÃO MARCELO CEOLIN OSÓRIO 23 37 7 67 Aprovado
+206 76 NÃO NÃO LUANA PIOVESAN 23 37 7 67 Aprovado Classe O Lotada em ERECHIM
+207 77 NÃO NÃO JÚLIA RAÍSSA MÄDER 22 37 8 67 Aprovado
+208 78 NÃO NÃO WENDELL LARRUSCAIN DA SILVA 26 36 5 67 Aprovado Aguardando nomeação OJAF TRF/4
+2097 79 NÃO SIM ANELISE FRANCISCA GUERREIRO PEIXOTO 21 25 7 53 Aprovado
+209 80 NÃO NÃO LUANA WEIZENMANN DE FREITAS 26 36 5 67 Aprovado Talvez Analista TJ/RS
+210 81 NÃO NÃO FELIPE RAMOS DE OLIVEIRA ZAHAN KLOOS 25 36 6 67 Aprovado Não Promotor de Justiça no MPRO
+211 82 NÃO NÃO CRISTIANE BIANCHI 25 36 6 67 Aprovado Talvez Analista TJ/RS
+212 83 NÃO NÃO MATHEUS ROBERTO STAFANELLO 25 36 6 67 Aprovado Nomeado AJ-PGE/RS setembro/2024
+2115 84 NÃO SIM MIRIAN PEREIRA DA SILVA 19 28 5 52 Aprovado
+213 85 NÃO NÃO RAQUEL TOME SOVERAL 24 36 7 67 Aprovado
+214 86 NÃO NÃO RAFAEL BORBA DE OLIVEIRA 24 36 7 67 Aprovado
+215 87 NÃO NÃO HENRIQUE SOLON GONÇALVES DA SILVA FILHO 24 36 7 67 Aprovado
+216 88 NÃO NÃO EMILLI DE SOUZA VIEIRA DA SILVA 23 36 8 67 Aprovado Sim Região da fronteira oeste
+2132 89 NÃO SIM DIEGO VARGAS GONÇALVES 20 27 5 52 Aprovado
+217 90 NÃO NÃO THAÍS CLARET DE OLIVEIRA PINTO 27 35 5 67 Aprovado
+218 91 NÃO NÃO IVSON MARCELO VITOR ALVES DE OLIVEIRA 26 35 6 67 Aprovado
+219 92 NÃO NÃO CECILIA DORESTE MONTEIRO CRUZ DA SILVA 26 35 6 67 Aprovado
+220 93 NÃO NÃO GUILHERME ANDRÉ PIETROSKI 26 35 6 67 Aprovado Talvez Nomeado TJAA TRF4 em 29/06/2023
+2170 94 NÃO SIM ISMENIO BARBOSA SOARES 19 26 7 52 Aprovado
+221 95 NÃO NÃO GABRIELA CHICRALA AZEVEDO 26 35 6 67 Aprovado
+222 96 NÃO NÃO TALITA RIBEIRO RODRIGUES 26 35 6 67 Aprovado
+223 97 NÃO NÃO RAFAEL MOORI PINTO 26 35 6 67 Aprovado
+224 98 NÃO NÃO MARIANA GRAZZIOTIN PEREIRA 25 35 7 67 Aprovado
+2199 99 NÃO SIM PATRICIA REIS DOS SANTOS 19 27 5 51 Aprovado Sim Litotral, Região Metropolitana
+227 100 NÃO NÃO LUCAS NOGUEZ FERNANDES 25 35 7 67 Aprovado Classe O Lotado em PINHEIRO MACHADO
+</script>
+
+<!-- Nova Ordem de Chamada (CSV) -->
+<script type="text/plain" id="rawDataCSV">
+0 | Classificacao | Ordem | Nome | Cota_Chamada
+1 | 1975 | 1 | EZEQUIEL SILVA DA SILVA | PCD (Fixado)
+2 | 152 | 2 | LUIZ OTÁVIO SILVA AVILA | AC
+3 | 154 | 3 | GERALDO KLAFKE JANISCH | AC
+4 | 1453 | 4 | REGES MAR ASSUNÇÃO GOMES | PNE
+5 | 155 | 5 | MARIA CAROLINA GUARIENTI PINTO | AC
+6 | 2013 | 6 | PAULO HENRIQUE DA SILVA OLIVEIRA | PCD
+7 | 156 | 7 | LAURA STEFENON FACHINI | AC
+8 | 157 | 8 | GIOVANO JOSÉ FELIPIN | AC
+9 | 1466 | 9 | GRAZIELE RIBEIRO SOUZA DIAS | PNE
+10 | 158 | 10 | EDUARDO VINHAS FAGUNDES | AC
+11 | 159 | 11 | GABRIELA FANTINEL SILVEIRA | AC
+12 | 160 | 12 | HAYCHA ABRAHAO SANTOS DE OLIVEIRA | AC
+13 | 161 | 13 | ALEX ANTUNES PIRES | AC
+14 | 1479 | 14 | GABRIELE DE MORAIS PUREZA | PNE
+15 | 162 | 15 | CRISTIAN ALEXANDRE MEDEIROS ROSA | AC
+16 | 2289 | 16 | MICHELE TORRES ELIZALDE | PCD
+17 | 163 | 17 | ALESSANDRA RODRIGUES OLIVEIRA | AC
+18 | 164 | 18 | YURI SOARES DE ABREU | AC
+19 | 1487 | 19 | AILÊ FAGUNDES DA SILVA | PNE
+20 | 165 | 20 | DÊNIS NEUTZLING BUCHWEITZ | AC
+21 | 166 | 21 | YGOR DE CASTRO SOARES | AC
+22 | 167 | 22 | ANDRÉ ALVES VERONEZ | AC
+23 | 168 | 23 | RICARDO DANIEL SILVA DE SOUZA | AC
+24 | 1588 | 24 | LEONARDO BARROS CRUZ | PNE
+25 | 169 | 25 | VITÓRIA MARIA CARVALHO SANTOS | AC
+26 | 170 | 26 | LIS ENGEL CÔRTES SILVA | AC (PCD Vazia)
+27 | 171 | 27 | JASSANA LEONI RAMOS | AC
+28 | 172 | 28 | DIEISON GIRARDI | AC
+29 | 1605 | 29 | LETICIA MARQUES PEREIRA | PNE
+30 | 173 | 30 | AUGUSTO DE OLIVEIRA GOMES PACHECO | AC
+31 | 174 | 31 | THOMÁS ANTONIO DIAS BORTOLINI | AC
+32 | 175 | 32 | FERNANDA BERNARDI | AC
+33 | 176 | 33 | ÉVERTON LUIS KÖRBES | AC
+34 | 1637 | 34 | CARLOS EDUARDO BARBOZA PENHA | PNE
+35 | 177 | 35 | ANTONIO DE ARAÚJO FILHO | AC
+36 | 178 | 36 | GIULIA TITTON | AC (PCD Vazia)
+37 | 179 | 37 | LUCAS LEAL BRAGA | AC
+38 | 180 | 38 | CLAUDIA MARIA CAMARGO GESSE TEIXEIRA | AC
+39 | 1646 | 39 | VITORIA FARIAS CORREA | PNE
+40 | 181 | 40 | GABRIELA DE OLIVEIRA ANTUNES | AC
+41 | 182 | 41 | TANISE PEIXOTO CARLI | AC
+42 | 183 | 42 | EVERTON FRANCIS PEREIRA MADRUGA | AC
+43 | 184 | 43 | VÍTOR BOLZAN ARROQUE | AC
+44 | 1671 | 44 | FRANCIELE CAIPU VIEIRA | PNE
+45 | 185 | 45 | MUNIQUE PAIM | AC
+46 | 186 | 46 | VANDERLEI ROWER | AC (PCD Vazia)
+47 | 187 | 47 | TARSSIO MANGANELI ZUQUETO | AC
+48 | 188 | 48 | RIELI FACHINI | AC
+49 | 1749 | 49 | MARLOS ALVES PRATES | PNE
+50 | 189 | 50 | KELVIN ALEX SANDER BORBA DO PRADO | AC
+51 | 190 | 51 | LUCAS BOEIRA PEREIRA | AC
+52 | 191 | 52 | SINARA FERNANDA KOCHENBORGER | AC
+53 | 192 | 53 | ISABELA FACCIN VERNIER | AC
+54 | 1811 | 54 | REJANE ILHA PINHEIRO | PNE
+55 | 193 | 55 | LUCAS VINICIUS LIMA DA SILVEIRA DE AZEVEDO | AC
+56 | 194 | 56 | JORDANA BESSI DA SILVA BARCELLOS | AC (PCD Vazia)
+57 | 194 | 57 | DANIEL FABER CARAFFINI | AC
+58 | 195 | 58 | GRACIANA KEMP MAAS | AC
+59 | 1867 | 59 | WARLEY MOREIRA DA CONCEIÇÃO | PNE
+60 | 196 | 60 | BRUNO MÜLLER SOARES | AC
+61 | 197 | 61 | FELIPE CHAVES BARTOLLO | AC
+62 | 198 | 62 | AMANDA RAFAELA CAVALLIN | AC
+63 | 199 | 63 | ANDRÉ RAMBO BATISTELLA | AC
+64 | 1874 | 64 | SAMER ALEXSANDER DE OLIVEIRA PORT | PNE
+65 | 200 | 65 | JANAINA NELPIS MATTOS TEIXEIRA | AC
+66 | 201 | 66 | CAMILA STUDZINSKI DA SILVA BARBOSA | AC (PCD Vazia)
+67 | 202 | 67 | MATHEUS MASSOTTI THOMAS | AC
+68 | 203 | 68 | ROSINERI VIEIRA BARROS | AC
+69 | 1903 | 69 | EVELLYN COSTA PIRES | PNE
+70 | 204 | 70 | JOÃO PEDRO SARTORI HEYDT | AC
+71 | 205 | 71 | MARCELO CEOLIN OSÓRIO | AC
+72 | 206 | 72 | LUANA PIOVESAN | AC
+73 | 207 | 73 | JÚLIA RAÍSSA MÄDER | AC
+74 | 1950 | 74 | ALINE DA SILVA OLIVEIRA | PNE
+75 | 208 | 75 | WENDELL LARRUSCAIN DA SILVA | AC
+76 | 209 | 76 | LUANA WEIZENMANN DE FREITAS | AC (PCD Vazia)
+77 | 210 | 77 | FELIPE RAMOS DE OLIVEIRA ZAHAN KLOOS | AC
+78 | 211 | 78 | CRISTIANE BIANCHI | AC
+79 | 1973 | 79 | DIÓGENES QUEIROZ DE MORAES | PNE
+80 | 212 | 80 | MATHEUS ROBERTO STAFANELLO | AC
+81 | 213 | 81 | RAQUEL TOME SOVERAL | AC
+82 | 214 | 82 | RAFAEL BORBA DE OLIVEIRA | AC
+83 | 215 | 83 | HENRIQUE SOLON GONÇALVES DA SILVA FILHO | AC
+84 | 1975 | 84 | EZEQUIEL SILVA DA SILVA | PNE
+85 | 216 | 85 | EMILLI DE SOUZA VIEIRA DA SILVA | AC
+86 | 217 | 86 | THAÍS CLARET DE OLIVEIRA PINTO | AC (PCD Vazia)
+87 | 218 | 87 | IVSON MARCELO VITOR ALVES DE OLIVEIRA | AC
+88 | 219 | 88 | CECILIA DORESTE MONTEIRO CRUZ DA SILVA | AC
+89 | 2016 | 89 | ANA PAULA DOS SANTOS RAMIRES | PNE
+90 | 220 | 90 | GUILHERME ANDRÉ PIETROSKI | AC
+91 | 221 | 91 | GABRIELA CHICRALA AZEVEDO | AC
+92 | 222 | 92 | TALITA RIBEIRO RODRIGUES | AC
+93 | 223 | 93 | RAFAEL MOORI PINTO | AC
+94 | 2066 | 94 | EDNA DOS SANTOS SILVA | PNE
+95 | 224 | 95 | MARIANA GRAZZIOTIN PEREIRA | AC
+96 | 225 | 96 | VALDENIR OSMAR DE OLIVEIRA JUNIOR | AC (PCD Vazia)
+97 | 226 | 97 | AUGUSTO BREITENBACH DINIZ | AC
+98 | 227 | 98 | MARINA UHRY VIEIRA | AC
+99 | 2097 | 99 | ANELISE FRANCISCA GUERREIRO PEIXOTO | PNE
+100 | 227 | 100 | LUCAS NOGUEZ FERNANDES | AC
+101 | 228 | 101 | ISABELLE GONÇALVES SANTOS | AC
+102 | 229 | 102 | ARTHUR DELLA VALLE BORTONCELLO | AC
+103 | 230 | 103 | PEDRO CAETANO MACHADO BARBIERO | AC
+104 | 2115 | 104 | MIRIAN PEREIRA DA SILVA | PNE
+105 | 231 | 105 | MARKELE MORO DE MELLO | AC
+106 | 232 | 106 | DELMAR LUIS FABER JUNIOR | AC (PCD Vazia)
+107 | 233 | 107 | ALEGRA DE OLIVEIRA URACH | AC
+108 | 234 | 108 | LETICIA MENTZ CABEDA | AC
+109 | 2132 | 109 | DIEGO VARGAS GONÇALVES | PNE
+110 | 235 | 110 | THAIS MORAES WILKOM | AC
+111 | 236 | 111 | MARIANA DI IORIO | AC
+112 | 237 | 112 | MARINA MANZONI BUENO | AC
+113 | 238 | 113 | FELIPE MILMANN GRANJA | AC
+114 | 2170 | 114 | ISMENIO BARBOSA SOARES | PNE
+115 | 239 | 115 | ARIEL FRAGA | AC
+116 | 240 | 116 | JULIA DA CUNHA PIRES | AC (PCD Vazia)
+117 | 241 | 117 | DIEGO RAMON CORDEIRO SANTOS | AC
+118 | 242 | 118 | PATRICIA BARCELLOS NETTO | AC
+119 | 2199 | 119 | PATRICIA REIS DOS SANTOS | PNE
+120 | 243 | 120 | TALES ARIEL CERUTTI MONTEIRO | AC
+121 | 244 | 121 | FELIPE CAIMI RIBEIRO | AC
+122 | 245 | 122 | ROBERTA ALONSO DA SILVEIRA DE AGUIAR DOS SANTOS | AC
+123 | 246 | 123 | GABRIELE SCHONS | AC
+124 | 2211 | 124 | ELLEN FABRICIO DA SILVA ROSA | PNE
+125 | 247 | 125 | VINÍCIUS MENDES DE SOUSA | AC
+126 | 248 | 126 | THIAGO KLUG ARJONA | AC (PCD Vazia)
+127 | 249 | 127 | BERNARDO VIANA | AC
+128 | 250 | 128 | MAYARA FRANCO SAUSEN MOOR | AC
+129 | 2253 | 129 | MARIA LUÍSA FRANCO CARDOSO | PNE
+130 | 251 | 130 | NATHÁLIA TEIXEIRA MARQUES | AC
+131 | 252 | 131 | MARINA FAUTH | AC
+132 | 253 | 132 | MAINARA KUHN | AC
+133 | 254 | 133 | GUSTAVO GUIDETTI FARIAS | AC
+134 | 2259 | 134 | EKTAYSON TEIXEIRA DA SILVEIRA | PNE
+135 | 255 | 135 | PRISCILA CAMOZZATO VAZ | AC
+136 | 256 | 136 | LARISSA AZAMBUJA FOLCHINI | AC (PCD Vazia)
+137 | 257 | 137 | VINÍCIUS GUARESE DE OLIVEIRA | AC
+138 | 258 | 138 | FERNANDA AIDOS LEAL | AC
+139 | 2265 | 139 | RICARDO DA ROSA | PNE
+140 | 259 | 140 | JÚLIA SILVA DOS SANTOS ULGUIM | AC
+141 | 260 | 141 | ÉVERTON GARCIA | AC
+142 | 261 | 142 | GEISE JULIANI PORRÉ LEMAINSKI | AC
+143 | 262 | 143 | CAMILA FERRUGEM DE OLIVEIRA | AC
+144 | 2279 | 144 | ÂNGELA SUSANEI VEIGA | PNE
+145 | 263 | 145 | ISABELLE SANTANA NEDER | AC
+146 | 264 | 146 | TALITA BOTEGA FLORES | AC (PCD Vazia)
+147 | 265 | 147 | PATRICK PEDÓ HECK | AC
+148 | 266 | 148 | IGOR GIUSEP GUERRA | AC
+149 | 2294 | 149 | DOUGLAS DE OLIVEIRA DAMASCENO | PNE
+150 | 267 | 150 | DAIANA KURTZ MÜNCHEN | AC
+151 | 268 | 151 | MATHEUS BOTEGA | AC
+152 | 269 | 152 | RAFAELLA BARROS DA SILVA | AC
+153 | 270 | 153 | KAULIN DE OLIVEIRA LEHNHARDT | AC
+154 | 2297 | 154 | DOUGLAS RODRIGUES DA ROSA | PNE
+155 | 271 | 155 | YURI DA SILVEIRA NEU | AC
+156 | 272 | 156 | NÍCOLAS WELTER | AC (PCD Vazia)
+157 | 273 | 157 | LARA DE AZEVEDO SILVEIRA | AC
+158 | 274 | 158 | HELENA FREY DE OLIVEIRA | AC
+159 | 2322 | 159 | DEBORAH DOS SANTOS RODRIGUES | PNE
+160 | 275 | 160 | ELEON GABRIEL DE AMORIM | AC
+161 | 276 | 161 | LUMA CAMPOS DA CUNHA MEDEIROS | AC
+162 | 277 | 162 | SILVIA MARIA CORREA VIEIRA | AC
+163 | 278 | 163 | ALESSANDRA SANTOS E ALCANTARA | AC
+164 | 2338 | 164 | MARCOS VINÍCIUS MENDES DE ANDRADE | PNE
+165 | 279 | 165 | AMANDA ROSSINI PICETTI | AC
+166 | 280 | 166 | DÉCIO FORMAGINI FURTUNATO | AC (PCD Vazia)
+167 | 281 | 167 | CAMILA LATUADA DE OLIVEIRA | AC
+168 | 282 | 168 | JOÃO BATISTA MARTINS PIAZER | AC
+169 | 283 | 169 | MARIA HELENA PUHL | AC (PNE Vazia)
+170 | 284 | 170 | LAIS APARECIDA MACIEL DUARTE | AC
+171 | 285 | 171 | GILSON RONALDO AGUIAR DE VASCONCELOS FILHO | AC
+172 | 286 | 172 | MATEUS BINOTTO PERIPOLLI | AC
+173 | 287 | 173 | MARCOS VINÍCIUS CARDOSO | AC
+174 | 288 | 174 | LUCIMAR ANDRIGHETTI | AC (PNE Vazia)
+175 | 289 | 175 | FELIPE HANAUER BERTOTTO | AC
+176 | 290 | 176 | EDUARDA MARIS DE LIMA HECK | AC (PCD Vazia)
+177 | 291 | 177 | RENAN DA SILVA BORGES | AC
+178 | 292 | 178 | LEONARDO SEGALLA FARIAS | AC
+179 | 293 | 179 | MATEUS ANTUNES OLING | AC (PNE Vazia)
+180 | 294 | 180 | KARINE LAMBERCH MACIEL DE LIMA | AC
+181 | 295 | 181 | LEANDRO MORALES DALLACOSTA | AC
+182 | 296 | 182 | BÁRBARA MOUTINHO CORDEIRO SANTOS DRAWANZ | AC
+183 | 297 | 183 | MAYKE ARAUJO | AC
+184 | 298 | 184 | NATHALIA MACHADO BOENO | AC (PNE Vazia)
+185 | 299 | 185 | YURI CHATALOV FERREIRA | AC
+186 | 300 | 186 | TIAGO KEITY DE SOUZA HATAKEYAMA | AC (PCD Vazia)
+187 | 301 | 187 | MICHELE DALLA PORTA SCHMIDT | AC
+188 | 302 | 188 | CRISTIANE SILVA DE OLIVEIRA | AC
+189 | 303 | 189 | ISABELLA VIEIRA DIAS | AC (PNE Vazia)
+190 | 304 | 190 | SABRINA SCHOSSLER | AC
+191 | 305 | 191 | MARIANA DE CASTRO PRESTES | AC
+192 | 306 | 192 | FRANCIELI ANDRESSA CAVALLI | AC
+193 | 307 | 193 | LAIZA RABAIOLI | AC
+194 | 308 | 194 | CAIO LUCIANO BALBINOT | AC (PNE Vazia)
+195 | 309 | 195 | NÍCOLAS RIBEIRO CAPA | AC
+196 | 310 | 196 | CAMILA DE ABREU PORT | AC (PCD Vazia)
+197 | 311 | 197 | MARCELLA CARVALHO PIMENTA XAVIER | AC
+198 | 312 | 198 | MATEUS FIUZA STREHL | AC
+199 | 313 | 199 | BRUNO MORANDI CABISTANI | AC (PNE Vazia)
+200 | 314 | 200 | HELENA ERNANDORENA FABRÍCIO | AC
+201 | 315 | 201 | PAULA SCARIOT ARGENTA | AC
+202 | 316 | 202 | FILIPE DA SILVA RIBEIRO | AC
+203 | 317 | 203 | LISIELI VENTURINI BARATTO | AC
+204 | 318 | 204 | ANA LUÍSA SILVA AZAMBUJA | AC (PNE Vazia)
+205 | 319 | 205 | RAUL DE FREITAS XAVIER | AC
+206 | 320 | 206 | ALLINE SOARES DOS SANTOS | AC (PCD Vazia)
+207 | 321 | 207 | MATHEUS PEREIRA ROCHA | AC
+208 | 322 | 208 | NAÍRA ELIZA MENEGAT | AC
+209 | 323 | 209 | TIAGO DE MORAES KASPER | AC (PNE Vazia)
+210 | 324 | 210 | PEDRO PEREIRA DE MELLO | AC
+211 | 325 | 211 | ANDRESSA BILLO STALTER | AC
+212 | 326 | 212 | GIOVANNI ANZOLIN BOEIRA | AC
+213 | 327 | 213 | ELIZIANE GUIMARÃES SCHROPFER | AC
+214 | 328 | 214 | MAIARA FONTOURA ALMEIDA | AC (PNE Vazia)
+215 | 329 | 215 | JÚLIA VELHO DOHNERT | AC
+216 | 330 | 216 | LEONARDO BRANDÃO MASCARENHAS | AC (PCD Vazia)
+217 | 331 | 217 | THAISA CALIARI BACKES | AC
+218 | 332 | 218 | TIAGO DAMÉ DE OLIVEIRA | AC
+219 | 333 | 219 | EDUARDO DE SOUSA COSTA | AC (PNE Vazia)
+220 | 334 | 220 | IGOR LUCIANO ROSSO | AC
+221 | 335 | 221 | MARITZA DOS SANTOS DE CAMPOS | AC
+222 | 336 | 222 | DANIEL TEIXEIRA MOTA | AC
+223 | 337 | 223 | ANA PAULA BORTOLINI | AC
+224 | 338 | 224 | BRUNO NASCIMENTO BOL DA SILVA | AC (PNE Vazia)
+225 | 339 | 225 | TALINE DORNELLES SEVERO | AC
+226 | 340 | 226 | JOÃO PEDRO AZEVEDO XAUSA | AC (PCD Vazia)
+227 | 341 | 227 | JULIANA PIERDONÁ LIMA | AC
+228 | 342 | 228 | BIANCA ROMERO DUTRA | AC
+229 | 343 | 229 | LEONARDO WERLE DA SILVA | AC (PNE Vazia)
+230 | 344 | 230 | FERNANDA CABRAL DE CERQUEIRA | AC
+231 | 345 | 231 | JULIANO PETERS IRIBARREM | AC
+232 | 346 | 232 | LARA YARTH ARAÚJO | AC
+233 | 347 | 233 | MELINA DALL IGNA | AC
+234 | 348 | 234 | ALINE IOB | AC (PNE Vazia)
+235 | 349 | 235 | ELIANE SCHMELING SOARES | AC
+236 | 350 | 236 | FRANCINI GROSS | AC (PCD Vazia)
+237 | 351 | 237 | ADAMO MARISVALDO DA SILVA SOARES | AC
+238 | 352 | 238 | VÍTOR VIDART KREISIG | AC
+239 | 353 | 239 | RENAN MITCZUK | AC (PNE Vazia)
+240 | 354 | 240 | THIAGO RODRIGUES PEREIRA | AC
+241 | 355 | 241 | MATHEUS FERNANDO DORNFELD | AC
+242 | 356 | 242 | RAQUEL PAIVA DA SILVA | AC
+243 | 357 | 243 | MAIARA KRUPP FUHRMANN | AC
+244 | 358 | 244 | ANA GABRIELA BONEIRA CHAVES | AC (PNE Vazia)
+245 | 359 | 245 | RAFAELA OSS EMER MEIRELES | AC
+246 | 359 | 246 | ADRIANA BLASKESI DE ALMEIDA | AC (PCD Vazia)
+247 | 360 | 247 | AMANDA COELHO | AC
+248 | 361 | 248 | CAROLINA SANTANA LOPES | AC
+249 | 362 | 249 | JERÔNIMO RODRIGUES DIAS | AC (PNE Vazia)
+250 | 363 | 250 | FERNANDA DE OLIVEIRA DUARTE | AC
+251 | 364 | 251 | JANAINA FLECK DA ROSA VALENTE | AC
+252 | 365 | 252 | DIÚLIA MARCELI BINELO | AC
+253 | 366 | 253 | TATIANA ANDRES AMARO | AC
+254 | 366 | 254 | RICARDO KOLESNE DA SILVA | AC (PNE Vazia)
+255 | 367 | 255 | LUCAS RODRIGUES DE BITENCOURT | AC
+256 | 368 | 256 | THIAGO RODRIGUES SÁ | AC (PCD Vazia)
+257 | 369 | 257 | MARIANE LOPES ALVES DE PAIVA DA SILVEIRA | AC
+258 | 370 | 258 | CÁSSIA SARAIVA DHEIN | AC
+259 | 371 | 259 | IGOR MARTINS VIEIRA | AC (PNE Vazia)
+260 | 372 | 260 | AFRANIO CAMPAGNA GONÇALVES JÚNIOR | AC
+261 | 373 | 261 | MARIA FERNANDA CORRÊA FREITAS | AC
+262 | 374 | 262 | LILIAM DA CUNHA RIBEIRO MENDONÇA | AC
+263 | 375 | 263 | PAOLA SOUCHIE SCHENKEL | AC
+264 | 376 | 264 | ISADORA ADAM | AC (PNE Vazia)
+265 | 377 | 265 | CRISTIANO MARQUES ANTUNES | AC
+266 | 378 | 266 | GUSTAVO DE OSTI MARANGAO | AC (PCD Vazia)
+267 | 379 | 267 | ALESSANDRA ANDREJESKI MOREIRA | AC
+268 | 380 | 268 | ADRIANA GIRARDELO TRENTIN | AC
+269 | 381 | 269 | PAOLA CORDEIRO DE ALMEIDA | AC (PNE Vazia)
+270 | 381 | 270 | JOÃO FRANCISCO ARAÚJO PEDRI | AC
+271 | 382 | 271 | BRUNA ZACHOW | AC
+272 | 383 | 272 | JÉSSICA FRANCINI STUMPF NUNES | AC
+273 | 384 | 273 | FABRÍCIO FERNANDEZ DA SILVA | AC
+274 | 385 | 274 | LUÍZA AMARAL BITENCOURT | AC (PNE Vazia)
+275 | 386 | 275 | DOUGLAS RIZZI | AC
+276 | 387 | 276 | CATHARINA MUCUNÃ PAIVA | AC (PCD Vazia)
+277 | 388 | 277 | EDUARDA SILVANO | AC
+278 | 389 | 278 | BRUNA MARAFIGA | AC
+279 | 390 | 279 | LETÍCIA DOS SANTOS | AC (PNE Vazia)
+280 | 391 | 280 | RONIÉRISON GUEDES DA SILVA | AC
+281 | 392 | 281 | LUIZ EDMUNDO KIELBOVICZ | AC
+282 | 393 | 282 | MARIANA MALESKI QUEIROD DE OLIVEIRA | AC
+283 | 393 | 283 | PAOLA BRANCO SOUZA VON HELD SOARES | AC
+284 | 394 | 284 | MARINA ANTUNES MARTINI | AC (PNE Vazia)
+285 | 395 | 285 | LEONARDO BERNOCHI GREGOL | AC
+286 | 396 | 286 | MATHEUS BORGES FERREIRA | AC (PCD Vazia)
+287 | 397 | 287 | HENRIQUE BEAL TAVARES | AC
+288 | 398 | 288 | ANDRE DA SILVA GIRU | AC
+289 | 399 | 289 | CRISTIANO PASQUETTI | AC (PNE Vazia)
+290 | 400 | 290 | JULIANE SCARIOT | AC
+291 | 401 | 291 | TATIESCA SILVEIRA RODRIGUES | AC
+292 | 402 | 292 | CARINE TOMAZ FREITAS GARCIA | AC
+293 | 403 | 293 | BRUNO PEREIRA DIEHL | AC
+294 | 404 | 294 | ANDRÉ BENCKE | AC (PNE Vazia)
+295 | 405 | 295 | MIRELE DE SOUZA OTTO | AC
+296 | 406 | 296 | JÚLIO ADRIANO CEMBRANEL | AC (PCD Vazia)
+297 | 407 | 297 | GUSTAVO DE OLIVEIRA TOTTI | AC
+298 | 408 | 298 | ANA PAULA JESKE | AC
+299 | 409 | 299 | NATALIA FREITAS LEITE | AC (PNE Vazia)
+300 | 410 | 300 | DANIEL MICHEL SOBOTTKA | AC
+301 | 411 | 301 | VANESSA ALVES PIMENTEL | AC
+302 | 412 | 302 | IGOR FERNANDO KUNRATH | AC
+303 | 413 | 303 | NANIVE CAROLINE CASTELO BRANCO QUINTAS | AC
+304 | 414 | 304 | VINICIUS HETTWER SCHWINGEL | AC (PNE Vazia)
+305 | 415 | 305 | MARILAINE NOVINSKI MACHADO | AC
+</script>
+
+<nav class="bg-navy-gradient text-white sticky top-0 z-40 shadow-lg border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="navigate('home')">
+        <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
+          <svg viewBox="0 0 40 40" class="w-7 h-7"><circle cx="20" cy="20" r="18" stroke="#c9a961" stroke-width="1" fill="none"/><text x="20" y="25" text-anchor="middle" fill="#c9a961" font-size="11" font-weight="700" font-family="Fraunces">TJ</text></svg>
+        </div>
+        <div>
+          <div class="font-display font-bold text-base leading-tight">TJRS</div>
+          <div class="text-[10px] text-slate-400 leading-tight uppercase tracking-wider">Portal de Chamada</div>
+        </div>
+      </div>
+      <div class="hidden md:flex items-center gap-1">
+        <a class="nav-link active" data-view="home" onclick="navigate('home')">Formulário</a>
+        <a class="nav-link" data-view="dashboard" onclick="navigate('dashboard')">Painel</a>
+        <a class="nav-link" data-view="admin" onclick="navigate('admin')" title="Painel Administrativo">
+          <svg class="w-4 h-4 inline -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </a>
+      </div>
+      <button class="md:hidden p-2 text-slate-300" onclick="document.getElementById('mobileMenu').classList.toggle('hidden')">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="md:hidden hidden border-t border-slate-800" id="mobileMenu">
+    <div class="px-4 py-3 space-y-1 bg-slate-900">
+      <a class="block nav-link" onclick="navigate('home'); document.getElementById('mobileMenu').classList.toggle('hidden')">Formulário</a>
+      <a class="block nav-link" onclick="navigate('dashboard'); document.getElementById('mobileMenu').classList.toggle('hidden')">Painel</a>
+      <a class="block nav-link" onclick="navigate('admin'); document.getElementById('mobileMenu').classList.toggle('hidden')">Administração</a>
+    </div>
+  </div>
+</nav>
+
+<div id="toastContainer" class="fixed top-20 right-4 z-50 space-y-2 max-w-sm"></div>
+<div id="modalContainer"></div>
+
+<main id="app"></main>
+
+<footer class="bg-navy-gradient text-slate-400 mt-16 border-t border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center"><svg viewBox="0 0 40 40" class="w-6 h-6"><circle cx="20" cy="20" r="18" stroke="#c9a961" stroke-width="1" fill="none"/><text x="20" y="25" text-anchor="middle" fill="#c9a961" font-size="11" font-weight="700" font-family="Fraunces">TJ</text></svg></div>
+        <div class="text-xs"><div class="text-slate-200 font-semibold">Tribunal de Justiça do Estado do Rio Grande do Sul</div><div>Portal de Chamada · Concurso de Oficial de Justiça</div></div>
+      </div>
+      <div class="text-xs text-slate-500 text-right"><div>Sistema de Gestão de Chamada</div><div>Dados atualizados em tempo real · <span id="footerStatus">Carregando...</span></div></div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// =================================================================
+// CONFIGURAÇÃO DO FIREBASE (Chaves configuráveis)
+// =================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXX",
+  authDomain: "seu-projeto.firebaseapp.com",
+  databaseURL: "https://seu-projeto-default-rtdb.firebaseio.com",
+  projectId: "seu-projeto",
+  storageBucket: "seu-projeto.appspot.com",
+  messagingSenderId: "XXXXXXXXXXXX",
+  appId: "1:XXXXXXXXXXXX:web:XXXXXXXXXXXX"
+};
+
+let db = null;
+let firebaseConnected = false;
+
+try {
+  if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('XXXX')) {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+  }
+} catch (e) {
+  console.error("Erro ao inicializar Firebase:", e);
+}
+// =================================================================
+
+const SESSION_KEY = 'tjrs_portal_session';
+const LOCAL_STORAGE_KEY = 'tjrs_portal_state_v2';
+
+let state = {
+  candidates: [],
+  comarcas: [],
+  phases: { phase1Open: true, phase2Open: false }
+};
+
+let intentionsChart = null;
+let currentView = 'home';
+let dashboardFilters = { cota: 'Todos', intencao: 'Todos' };
+let currentCandidateId = null;
+let adminAuthenticated = false;
+
+function cleanPhone(phone) {
+  if (!phone) return '';
+  return phone.replace(/\D/g, '');
+}
+
+function parseData() {
+  const oldIntentions = {};
+  const oldText = document.getElementById('rawDataOld').textContent;
+  const oldLines = oldText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  
+  oldLines.forEach(line => {
+    const match = line.match(/^(\d+)\s+(\d+)\s+(SIM|NÃO)\s+(SIM|NÃO)\s+(.*?)\s+Aprovado\s*(.*)$/);
+    if (match) {
+      let nome = match[5].trim().replace(/\s+\d+(\s+\d+){0,3}$/, '').trim();
+      const rest = match[6].trim();
+      let status = 'Pendente';
+      const firstWord = rest.split(/\s+/)[0].toLowerCase();
+      if (firstWord === 'sim') status = 'Sim';
+      else if (firstWord === 'não' || firstWord === 'nao') status = 'Nao';
+      else if (firstWord === 'talvez') status = 'Talvez';
+      if (status !== 'Pendente') oldIntentions[nome] = status;
+    }
+  });
+
+  const csvText = document.getElementById('rawDataCSV').textContent;
+  const csvLines = csvText.trim().split('\n').filter(l => l.trim() && !l.startsWith('0 |'));
+  const candidates = [];
+  
+  csvLines.forEach(line => {
+    const parts = line.split('|').map(p => p.trim());
+    if (parts.length >= 5) {
+      const classificacao = parts[1];
+      const ordem = parseInt(parts[2]);
+      const nome = parts[3];
+      const cotaRaw = parts[4];
+      
+      let cota = 'Ampla';
+      if (cotaRaw.startsWith('PCD')) cota = 'PCD';
+      else if (cotaRaw.startsWith('PNE')) cota = 'PN';
+      
+      const status = oldIntentions[nome] || 'Pendente';
+      
+      candidates.push({
+        id: 'c' + ordem,
+        classificacao: classificacao,
+        nome: nome,
+        cota: cota,
+        classificacaoGeral: ordem,
+        status: status,
+        telefone: '',
+        email: '',
+        comarcaEscolhida: null,
+        escolheuEm: null
+      });
+    }
+  });
+
+  try {
+    const savedLocal = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (savedLocal) {
+      const parsedLocal = JSON.parse(savedLocal);
+      if (parsedLocal.candidates && parsedLocal.candidates.length > 0) {
+        parsedLocal.candidates.forEach(localCand => {
+          const match = candidates.find(c => c.id === localCand.id);
+          if (match) {
+            if (localCand.telefone) match.telefone = localCand.telefone;
+            if (localCand.email) match.email = localCand.email;
+            if (localCand.status) match.status = localCand.status;
+            if (localCand.comarcaEscolhida) match.comarcaEscolhida = localCand.comarcaEscolhida;
+          }
+        });
+      }
+      if (parsedLocal.phases) {
+        state.phases = parsedLocal.phases;
+      }
+    }
+  } catch(e) {
+    console.error("Erro ao ler localStorage:", e);
+  }
+  
+  return {
+    candidates: candidates,
+    comarcas: [],
+    phases: { phase1Open: true, phase2Open: false }
+  };
+}
+
+function initApp() {
+  state = parseData();
+  
+  const session = sessionStorage.getItem(SESSION_KEY);
+  if (session && state.candidates.find(c => c.id === session)) {
+    currentCandidateId = session;
+  }
+  
+  render();
+  
+  if (db) {
+    db.ref('state').once('value').then(snapshot => {
+      const data = snapshot.val();
+      if (!data) {
+        db.ref('state').set(state).then(() => {
+          firebaseConnected = true;
+        }).catch(err => {
+          console.error("Erro ao gravar no Firebase:", err);
+        });
+      } else {
+        state = data;
+        saveLocalBackup();
+        const session = sessionStorage.getItem(SESSION_KEY);
+        if (session && state.candidates.find(c => c.id === session)) {
+          currentCandidateId = session;
+        } else {
+          currentCandidateId = null;
+        }
+        render();
+        firebaseConnected = true;
+      }
+    }).catch(err => {
+      console.error("Permissão Firebase:", err);
+    });
+    
+    db.ref('state').on('value', (snapshot) => {
+      if (firebaseConnected) {
+        const data = snapshot.val();
+        if (data) {
+          state = data;
+          saveLocalBackup();
+          const session = sessionStorage.getItem(SESSION_KEY);
+          if (session && state.candidates.find(c => c.id === session)) {
+            currentCandidateId = session;
+          } else {
+            currentCandidateId = null;
+          }
+          render();
+        }
+      }
+    });
+  }
+}
+
+function saveLocalBackup() {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+  } catch(e) {}
+}
+
+function updateState(path, value) {
+  if (path.startsWith('candidates/')) {
+    const parts = path.split('/');
+    const id = parts[1];
+    const field = parts[2];
+    const cand = state.candidates.find(c => c.id === id);
+    if (cand) cand[field] = value;
+  } else if (path.startsWith('phases/')) {
+    const phase = path.split('/')[1];
+    state.phases[phase] = value;
+  }
+  
+  saveLocalBackup();
+  render();
+
+  if (db && firebaseConnected) {
+    db.ref('state/' + path).set(value).catch(err => {
+      console.error("Erro ao salvar no Firebase:", err);
+    });
+  }
+}
+
+function getActiveQueue() {
+  if (!state.candidates) return [];
+  return state.candidates
+    .filter(c => c.status !== 'Nao' && !c.comarcaEscolhida)
+    .sort((a, b) => a.classificacaoGeral - b.classificacaoGeral);
+}
+
+function getCurrentChooser() {
+  const queue = getActiveQueue();
+  return queue.length > 0 ? queue[0] : null;
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const colors = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-blue-600', warning: 'bg-amber-500' };
+  const toast = document.createElement('div');
+  toast.className = `toast ${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-start gap-3 max-w-sm`;
+  toast.innerHTML = `<div class="text-sm font-medium flex-1">${message}</div>`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.remove(); }, 4000);
+}
+
+function navigate(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.querySelectorAll(`.nav-link[data-view="${view}"]`).forEach(l => l.classList.add('active'));
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeModal() {
+  document.getElementById('modalContainer').innerHTML = '';
+}
+
+function render() {
+  const app = document.getElementById('app');
+  if (!state.candidates || state.candidates.length === 0) {
+    app.innerHTML = `<div class="flex justify-center items-center h-screen"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div></div>`;
+    document.getElementById('footerStatus').textContent = 'Carregando dados...';
+    return;
+  }
+  
+  let html = '';
+  if (currentView === 'home') html = renderHome();
+  else if (currentView === 'candidate') html = renderCandidatePortal();
+  else if (currentView === 'dashboard') html = renderDashboard();
+  else if (currentView === 'admin') html = renderAdmin();
+  
+  app.innerHTML = html;
+  
+  if (currentView === 'home') attachHomeEvents();
+  if (currentView === 'dashboard') renderCharts();
+  
+  const dbStatus = (db && firebaseConnected) ? 'Sincronizado' : 'Modo Local Protegido';
+  document.getElementById('footerStatus').textContent = `${state.candidates.length} candidatos · ${dbStatus}`;
+}
+
+function renderHome() {
+  const totalCandidatos = state.candidates.length;
+  const intencaoSim = state.candidates.filter(c => c.status === 'Sim').length;
+  const intencaoNao = state.candidates.filter(c => c.status === 'Nao').length;
+  const currentChooser = getCurrentChooser();
+  
+  return `
+    <section class="relative bg-navy-gradient text-white overflow-hidden">
+      <div class="absolute inset-0 pattern-dots opacity-40"></div>
+      <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+        <div class="max-w-3xl fade-in">
+          <h1 class="font-display font-bold text-4xl md:text-6xl leading-[1.1] mb-4">
+            Portal de Chamada e<br/><span class="text-[#c9a961]">Manifestação de Intenção</span>
+          </h1>
+          <p class="text-lg text-slate-400 max-w-2xl mb-8 leading-relaxed">
+            Sistema oficial de gestão da chamada do Concurso de Oficial de Justiça do TJRS. 
+          </p>
+          <div class="flex flex-wrap gap-3 mb-2">
+            <div class="px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-700 backdrop-blur"><div class="text-[10px] text-slate-500 uppercase tracking-wider">Candidatos</div><div class="font-display text-2xl font-bold">${totalCandidatos}</div></div>
+            <div class="px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-700 backdrop-blur"><div class="text-[10px] text-slate-500 uppercase tracking-wider">Intenção "Sim"</div><div class="font-display text-2xl font-bold text-green-400">${intencaoSim}</div></div>
+            <div class="px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-700 backdrop-blur"><div class="text-[10px] text-slate-500 uppercase tracking-wider">Recusaram</div><div class="font-display text-2xl font-bold text-red-400">${intencaoNao}</div></div>
+          </div>
+        </div>
+      </div>
+      <svg class="absolute bottom-0 left-0 right-0 w-full" viewBox="0 0 1440 80" preserveAspectRatio="none" style="height: 60px;"><path d="M0,40 C320,80 720,0 1440,40 L1440,80 L0,80 Z" fill="#0f172a"/></svg>
+    </section>
+    
+    <section class="relative -mt-8 z-10 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-3xl mx-auto">
+        <div class="card-elevated p-8 relative overflow-hidden">
+          <div class="ornament-corner tl"></div><div class="ornament-corner tr"></div><div class="ornament-corner bl"></div><div class="ornament-corner br"></div>
+          <div class="text-center mb-6 relative">
+            <div class="inline-flex items-center gap-3 text-xs text-slate-500 uppercase tracking-wider font-semibold mb-3"><span class="w-8 h-px bg-[#c9a961]"></span>Acesso Individual do Candidato<span class="w-8 h-px bg-[#c9a961]"></span></div>
+            <h2 class="font-display text-2xl md:text-3xl font-bold text-white">Identifique-se para acessar</h2>
+            <p class="text-sm text-slate-400 mt-2 max-w-md mx-auto">Selecione seu nome na lista abaixo. No primeiro acesso você cadastrará seu telefone, que será sua senha de acesso.</p>
+          </div>
+          <div class="space-y-4 relative">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nome do Candidato</label>
+              <div class="relative">
+                <input type="text" id="candidateSearch" class="input-field pr-10" placeholder="Digite seu nome para buscar..." autocomplete="off">
+                <svg class="absolute right-3 top-3.5 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              </div>
+              <div id="searchResults" class="hidden absolute z-20 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg search-results max-h-72 overflow-y-auto"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4 mt-6">
+          <div class="card p-5 relative">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="w-9 h-9 rounded-full ${state.phases.phase1Open ? 'phase-step-active' : 'phase-step-pending'} flex items-center justify-center text-sm font-bold">1</div>
+              <div><div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Fase 1</div><div class="font-semibold text-sm text-white">Intenção de Posse</div></div>
+            </div>
+            <div class="text-xs ${state.phases.phase1Open ? 'text-green-400' : 'text-slate-500'} font-medium ml-12">${state.phases.phase1Open ? '● Aberta para respostas' : '○ Encerrada'}</div>
+          </div>
+          <div class="card p-5 relative">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="w-9 h-9 rounded-full ${state.phases.phase2Open ? 'phase-step-active' : 'phase-step-pending'} flex items-center justify-center text-sm font-bold">2</div>
+              <div><div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Fase 2</div><div class="font-semibold text-sm text-white">Escolha de Comarca</div></div>
+            </div>
+            <div class="text-xs ${state.phases.phase2Open ? 'text-green-400' : 'text-slate-500'} font-medium ml-12">${state.phases.phase2Open ? '● Em andamento' : '○ Aguardando'}</div>
+          </div>
+        </div>
+        
+        ${currentChooser ? `
+          <div class="card-elevated p-5 mt-6 border-l-4 border-l-green-500">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-full bg-green-900/50 text-green-400 flex items-center justify-center flex-shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[10px] text-green-500 font-semibold uppercase tracking-wider">Próximo da Fila</div>
+                <div class="font-display text-lg font-bold text-white truncate">${currentChooser.nome}</div>
+                <div class="text-xs text-slate-500">Classificação ${currentChooser.classificacao} · ${currentChooser.cota}</div>
+              </div>
+              <button onclick="navigate('dashboard')" class="btn-ghost text-xs px-3 py-1.5 rounded flex-shrink-0">Ver fila</button>
+            </div>
+          </div>
+        ` : ''}
+        
+        <div class="text-center mt-6 pb-4"><button onclick="navigate('dashboard')" class="text-sm text-blue-400 hover:text-blue-300 font-medium underline-offset-4 hover:underline">Ver Painel Público →</button></div>
+      </div>
+    </section>
+    <div class="h-12"></div>
+  `;
+}
+
+function attachHomeEvents() {
+  const search = document.getElementById('candidateSearch');
+  const results = document.getElementById('searchResults');
+  if (!search) return;
+  
+  search.addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    if (q.length < 2) { results.classList.add('hidden'); return; }
+    
+    const matches = state.candidates.filter(c => 
+      c.nome.toLowerCase().includes(q) || String(c.classificacao).includes(q)
+    ).slice(0, 30);
+    
+    if (matches.length === 0) {
+      results.innerHTML = '<div class="p-3 text-sm text-slate-500">Nenhum candidato encontrado.</div>';
+      results.classList.remove('hidden');
+      return;
+    }
+    
+    results.innerHTML = matches.map(c => `
+      <div class="search-result-item p-3 cursor-pointer border-b border-slate-700 last:border-0 flex items-center justify-between gap-2" onclick="initCandidateAuth('${c.id}')">
+        <div class="min-w-0">
+          <div class="font-medium text-sm truncate text-slate-200">${c.nome}</div>
+          <div class="text-xs text-slate-500">Class. ${c.classificacao} · Ordem ${c.classificacaoGeral}º · ${c.cota} ${c.telefone ? '🔒 Autenticado' : '🆕 Primeiro acesso'}</div>
+        </div>
+        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </div>
+    `).join('');
+    results.classList.remove('hidden');
+  });
+  
+  document.addEventListener('click', (e) => {
+    if (!search.contains(e.target) && !results.contains(e.target)) results.classList.add('hidden');
+  });
+}
+
+function initCandidateAuth(id) {
+  const c = state.candidates.find(x => x.id === id);
+  if (!c) return;
+
+  const modalContainer = document.getElementById('modalContainer');
+
+  if (!c.telefone || cleanPhone(c.telefone).length === 0) {
+    modalContainer.innerHTML = `
+      <div class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in">
+        <div class="card-elevated max-w-md w-full p-6 relative overflow-hidden">
+          <div class="ornament-corner tl"></div><div class="ornament-corner tr"></div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-xs font-semibold text-blue-400 uppercase tracking-wider">Primeiro Acesso</div>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-white">&times;</button>
+          </div>
+          <h3 class="font-display text-xl font-bold text-white mb-1">${c.nome}</h3>
+          <p class="text-xs text-slate-400 mb-5">Para sua segurança e impedir que terceiros alterem sua resposta, cadastre seu número de telefone e e-mail. Seu telefone será sua senha de acesso futuro.</p>
+          
+          <form onsubmit="saveFirstTimeAuth(event, '${c.id}')" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Número de Telefone / WhatsApp <span class="text-red-400">*</span></label>
+              <input type="tel" id="regPhone" required placeholder="(XX) 9XXXX-XXXX" class="input-field" autocomplete="tel">
+              <span class="text-[10px] text-slate-500">Exemplo: 51999998888</span>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Endereço de E-mail <span class="text-red-400">*</span></label>
+              <input type="email" id="regEmail" required placeholder="seuemail@exemplo.com" class="input-field" autocomplete="email">
+            </div>
+            <div class="pt-2 flex gap-3">
+              <button type="button" onclick="closeModal()" class="btn-ghost flex-1 py-2.5 rounded-lg text-sm">Cancelar</button>
+              <button type="submit" class="btn-primary flex-1 py-2.5 rounded-lg text-sm">Salvar e Acessar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in">
+      <div class="card-elevated max-w-md w-full p-6 relative overflow-hidden">
+        <div class="ornament-corner tl"></div><div class="ornament-corner tr"></div>
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-xs font-semibold text-amber-400 uppercase tracking-wider">Autenticação Obrigatória</div>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white">&times;</button>
+        </div>
+        <h3 class="font-display text-xl font-bold text-white mb-1">${c.nome}</h3>
+        <p class="text-xs text-slate-400 mb-5">Informe o número de telefone cadastrado no primeiro acesso para confirmar sua identidade.</p>
+        
+        <form onsubmit="verifyCandidatePhone(event, '${c.id}')" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Seu Telefone Cadastrado</label>
+            <input type="tel" id="authPhone" required placeholder="Digite apenas os números..." class="input-field" autofocus autocomplete="off">
+          </div>
+          <div class="pt-2 flex gap-3">
+            <button type="button" onclick="closeModal()" class="btn-ghost flex-1 py-2.5 rounded-lg text-sm">Cancelar</button>
+            <button type="submit" class="btn-primary flex-1 py-2.5 rounded-lg text-sm">Autenticar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function saveFirstTimeAuth(event, candidateId) {
+  event.preventDefault();
+  const phone = document.getElementById('regPhone').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  
+  if (cleanPhone(phone).length < 8) {
+    showToast('Informe um número de telefone válido (mínimo 8 dígitos).', 'warning');
+    return;
+  }
+  if (!email || !email.includes('@')) {
+    showToast('Informe um endereço de e-mail válido.', 'warning');
+    return;
+  }
+  
+  updateState(`candidates/${candidateId}/telefone`, phone);
+  updateState(`candidates/${candidateId}/email`, email);
+  
+  currentCandidateId = candidateId;
+  sessionStorage.setItem(SESSION_KEY, candidateId);
+  closeModal();
+  showToast(`Cadastro efetuado! Seu telefone foi registrado como senha.`, 'success');
+  navigate('candidate');
+}
+
+function verifyCandidatePhone(event, candidateId) {
+  event.preventDefault();
+  const inputPhone = document.getElementById('authPhone').value.trim();
+  const c = state.candidates.find(x => x.id === candidateId);
+  
+  if (!c) {
+    closeModal();
+    return;
+  }
+  
+  const cleanInput = cleanPhone(inputPhone);
+  const cleanStored = cleanPhone(c.telefone);
+  
+  if (cleanInput === cleanStored && cleanInput.length >= 8) {
+    currentCandidateId = c.id;
+    sessionStorage.setItem(SESSION_KEY, c.id);
+    closeModal();
+    showToast(`Autenticação bem-sucedida! Bem-vindo(a), ${c.nome.split(' ')[0]}.`, 'success');
+    navigate('candidate');
+  } else {
+    showToast('Telefone incorreto! Apenas o titular pode alterar a decisão.', 'error');
+  }
+}
+
+function renderCandidatePortal() {
+  if (!currentCandidateId) { navigate('home'); return ''; }
+  const candidate = state.candidates.find(c => c.id === currentCandidateId);
+  if (!candidate) { currentCandidateId = null; sessionStorage.removeItem(SESSION_KEY); navigate('home'); return ''; }
+  
+  return `
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+      <div class="card-elevated p-6 mb-6 relative overflow-hidden">
+        <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="min-w-0">
+            <div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">Área Autenticada do Candidato</div>
+            <h1 class="font-display text-2xl font-bold text-white truncate">${candidate.nome}</h1>
+            <div class="flex flex-wrap items-center gap-2 mt-2">
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-900/50 text-blue-300">Ordem de Nomeação ${candidate.classificacaoGeral}º</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium ${candidate.cota === 'Ampla' ? 'badge-cota-ampla' : candidate.cota === 'PCD' ? 'badge-cota-pcd' : 'badge-cota-pn'}">${candidate.cota}</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium status-${candidate.status.toLowerCase()}">Status: ${candidate.status}</span>
+            </div>
+            
+            <div class="mt-4 pt-3 border-t border-slate-700/60 flex flex-wrap gap-4 text-xs text-slate-300">
+              <div><span class="text-slate-500">Telefone / WhatsApp:</span> <strong>${candidate.telefone || '—'}</strong></div>
+              <div><span class="text-slate-500">E-mail:</span> <strong>${candidate.email || '—'}</strong></div>
+              <button onclick="openEditContactModal('${candidate.id}')" class="text-blue-400 hover:underline text-[11px] font-semibold">Editar contatos</button>
+            </div>
+          </div>
+          <button onclick="logoutCandidate()" class="btn-ghost text-sm px-4 py-2 rounded flex items-center gap-2 flex-shrink-0 self-start md:self-auto">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>Sair
+          </button>
+        </div>
+      </div>
+      
+      <div class="card-elevated p-6 mb-6">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full phase-step-active flex items-center justify-center text-sm font-bold">1</div>
+            <div><h2 class="font-display text-xl font-bold text-white">Intenção de Posse</h2><p class="text-xs text-slate-400">Registre ou altere sua intenção de assumir a vaga.</p></div>
+          </div>
+          ${state.phases.phase1Open ? '<span class="text-xs text-green-400 font-medium bg-green-900/30 px-2 py-1 rounded">● Aberta para edição</span>' : '<span class="text-xs text-slate-500 font-medium bg-slate-800 px-2 py-1 rounded">○ Encerrada</span>'}
+        </div>
+        
+        ${state.phases.phase1Open ? `
+          <div class="text-center my-6">
+            <p class="font-display text-lg md:text-xl text-slate-300 mb-6">Você tem intenção de assumir a vaga nesta chamada?</p>
+            <div class="flex flex-wrap justify-center gap-3">
+              <button onclick="setCandidateStatus('Sim')" class="px-6 md:px-8 py-4 rounded-xl border-2 transition-all ${candidate.status === 'Sim' ? 'border-green-500 bg-green-900/30 text-green-400 shadow-md' : 'border-slate-700 hover:border-green-700 hover:bg-green-900/10 text-slate-300'} font-semibold min-w-[110px]"><div class="text-2xl mb-1">✓</div><div class="text-sm">SIM</div></button>
+              <button onclick="setCandidateStatus('Nao')" class="px-6 md:px-8 py-4 rounded-xl border-2 transition-all ${candidate.status === 'Nao' ? 'border-red-500 bg-red-900/30 text-red-400 shadow-md' : 'border-slate-700 hover:border-red-700 hover:bg-red-900/10 text-slate-300'} font-semibold min-w-[110px]"><div class="text-2xl mb-1">✕</div><div class="text-sm">NÃO</div></button>
+              <button onclick="setCandidateStatus('Talvez')" class="px-6 md:px-8 py-4 rounded-xl border-2 transition-all ${candidate.status === 'Talvez' ? 'border-amber-500 bg-amber-900/30 text-amber-400 shadow-md' : 'border-slate-700 hover:border-amber-700 hover:bg-amber-900/10 text-slate-300'} font-semibold min-w-[110px]"><div class="text-2xl mb-1">?</div><div class="text-sm">TALVEZ</div></button>
+            </div>
+          </div>
+        ` : `<div class="text-center py-6 text-slate-500 text-sm bg-slate-800/50 rounded-lg">Fase encerrada.</div>`}
+      </div>
+      
+      <div class="card-elevated p-6 mb-6 opacity-60">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full phase-step-pending flex items-center justify-center text-sm font-bold">2</div>
+            <div><h2 class="font-display text-xl font-bold text-slate-400">Escolha de Comarca</h2><p class="text-xs text-slate-500">Aguardando liberação do Tribunal.</p></div>
+          </div>
+          <span class="text-xs text-slate-500 font-medium bg-slate-800 px-2 py-1 rounded">○ Aguardando</span>
+        </div>
+        <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-6 text-center text-sm text-slate-500">
+          As comarcas ainda não foram disponibilizadas. Aguarde novas instruções.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openEditContactModal(candidateId) {
+  const c = state.candidates.find(x => x.id === candidateId);
+  if (!c) return;
+  
+  const modalContainer = document.getElementById('modalContainer');
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in">
+      <div class="card-elevated max-w-md w-full p-6 relative overflow-hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-xs font-semibold text-blue-400 uppercase tracking-wider">Atualizar Dados de Contato</div>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white">&times;</button>
+        </div>
+        <h3 class="font-display text-lg font-bold text-white mb-4">${c.nome}</h3>
+        
+        <form onsubmit="saveUpdatedContact(event, '${c.id}')" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Novo Telefone / WhatsApp</label>
+            <input type="tel" id="editPhone" required value="${c.telefone || ''}" class="input-field">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Novo E-mail</label>
+            <input type="email" id="editEmail" required value="${c.email || ''}" class="input-field">
+          </div>
+          <div class="pt-2 flex gap-3">
+            <button type="button" onclick="closeModal()" class="btn-ghost flex-1 py-2.5 rounded-lg text-sm">Cancelar</button>
+            <button type="submit" class="btn-primary flex-1 py-2.5 rounded-lg text-sm">Salvar Alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function saveUpdatedContact(event, candidateId) {
+  event.preventDefault();
+  const phone = document.getElementById('editPhone').value.trim();
+  const email = document.getElementById('editEmail').value.trim();
+  
+  if (cleanPhone(phone).length < 8) {
+    showToast('Informe um telefone válido.', 'warning');
+    return;
+  }
+  
+  updateState(`candidates/${candidateId}/telefone`, phone);
+  updateState(`candidates/${candidateId}/email`, email);
+  closeModal();
+  showToast('Contatos atualizados com sucesso!', 'success');
+}
+
+function setCandidateStatus(status) {
+  const c = state.candidates.find(x => x.id === currentCandidateId);
+  if (!c || !state.phases.phase1Open) return;
+  updateState(`candidates/${c.id}/status`, status);
+  showToast(`Intenção atualizada: ${status === 'Sim' ? 'SIM' : status === 'Nao' ? 'NÃO' : 'TALVEZ'}`, 'success');
+}
+
+function logoutCandidate() {
+  currentCandidateId = null;
+  sessionStorage.removeItem(SESSION_KEY);
+  showToast('Você encerrou a sessão.', 'info');
+  navigate('home');
+}
+
+function renderDashboard() {
+  const intentions = {
+    Sim: state.candidates.filter(c => c.status === 'Sim').length,
+    Nao: state.candidates.filter(c => c.status === 'Nao').length,
+    Talvez: state.candidates.filter(c => c.status === 'Talvez').length,
+    Pendente: state.candidates.filter(c => c.status === 'Pendente').length
+  };
+  
+  const filteredQueue = state.candidates.filter(c => {
+    if (dashboardFilters.cota !== 'Todos' && c.cota !== dashboardFilters.cota) return false;
+    if (dashboardFilters.intencao !== 'Todos' && c.status !== dashboardFilters.intencao) return false;
+    return true;
+  }).sort((a, b) => a.classificacaoGeral - b.classificacaoGeral);
+  
+  return `
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+      <div class="mb-6">
+        <div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1 flex items-center gap-2"><span class="w-6 h-px bg-[#c9a961]"></span>Transparência Pública</div>
+        <h1 class="font-display text-3xl md:text-4xl font-bold text-white">Painel da Chamada</h1>
+      </div>
+      
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4"><div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Total Aprovados</div><div class="font-display text-3xl font-bold text-white">${state.candidates.length}</div></div>
+        <div class="card p-4"><div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Intenção Sim</div><div class="font-display text-3xl font-bold text-green-400">${intentions.Sim}</div></div>
+        <div class="card p-4"><div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Recusaram</div><div class="font-display text-3xl font-bold text-red-400">${intentions.Nao}</div></div>
+        <div class="card p-4"><div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Talvez</div><div class="font-display text-3xl font-bold text-amber-400">${intentions.Talvez}</div></div>
+      </div>
+      
+      <div class="grid lg:grid-cols-2 gap-6 mb-6">
+        <div class="card-elevated p-6"><h3 class="font-display text-lg font-bold text-white mb-4">Intenção de Posse</h3><div class="relative h-64"><canvas id="intentionsChart"></canvas></div></div>
+        <div class="card-elevated p-6">
+          <h3 class="font-display text-lg font-bold text-white mb-4">Vagas por Comarca</h3>
+          <div class="relative h-64 flex items-center justify-center text-slate-500 text-sm text-center px-4">
+            ${state.comarcas.length === 0 ? 'Comarcas ainda não disponibilizadas pelo Tribunal.' : '<canvas id="comarcasChart"></canvas>'}
+          </div>
+        </div>
+      </div>
+      
+      <div class="card-elevated p-6 mb-6">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-4">
+          <div><h3 class="font-display text-lg font-bold text-white">Fila Dinâmica</h3><p class="text-xs text-slate-500">Aplique os filtros para visualizar grupos específicos.</p></div>
+          <div class="flex flex-wrap gap-2">
+            <select onchange="setFilter('cota', this.value)" class="text-xs border border-slate-700 rounded px-2 py-1.5 bg-slate-800 text-slate-300">
+              <option value="Todos" ${dashboardFilters.cota === 'Todos' ? 'selected' : ''}>Todas as Cotas</option>
+              <option value="Ampla" ${dashboardFilters.cota === 'Ampla' ? 'selected' : ''}>Ampla Conc.</option>
+              <option value="PN" ${dashboardFilters.cota === 'PN' ? 'selected' : ''}>Pretos/Negros</option>
+              <option value="PCD" ${dashboardFilters.cota === 'PCD' ? 'selected' : ''}>PCD</option>
+            </select>
+            <select onchange="setFilter('intencao', this.value)" class="text-xs border border-slate-700 rounded px-2 py-1.5 bg-slate-800 text-slate-300">
+              <option value="Todos" ${dashboardFilters.intencao === 'Todos' ? 'selected' : ''}>Todas as Intenções</option>
+              <option value="Sim" ${dashboardFilters.intencao === 'Sim' ? 'selected' : ''}>Sim</option>
+              <option value="Nao" ${dashboardFilters.intencao === 'Nao' ? 'selected' : ''}>Não</option>
+              <option value="Talvez" ${dashboardFilters.intencao === 'Talvez' ? 'selected' : ''}>Talvez</option>
+              <option value="Pendente" ${dashboardFilters.intencao === 'Pendente' ? 'selected' : ''}>Pendente</option>
+            </select>
+          </div>
+        </div>
+        <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+          <table class="w-full text-sm">
+            <thead class="sticky top-0 bg-slate-800"><tr class="text-left text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-700"><th class="py-3 px-2 font-semibold">Ordem</th><th class="py-3 px-2 font-semibold">Candidato</th><th class="py-3 px-2 font-semibold">Cota</th><th class="py-3 px-2 font-semibold">Intenção</th><th class="py-3 px-2 font-semibold">Comarca</th></tr></thead>
+            <tbody>
+              ${filteredQueue.map(c => {
+                const nameClass = c.status === 'Nao' ? 'declined' : '';
+                return `<tr class="border-b border-slate-700 hover:bg-slate-700/30">
+                  <td class="py-3 px-2 font-mono text-xs text-slate-500">${c.classificacaoGeral}º</td>
+                  <td class="py-3 px-2 font-medium ${nameClass}">${c.nome}</td>
+                  <td class="py-3 px-2"><span class="badge-cota-${c.cota.toLowerCase()} px-2 py-0.5 rounded text-[10px] font-medium">${c.cota}</span></td>
+                  <td class="py-3 px-2"><span class="status-${c.status.toLowerCase()} px-2 py-0.5 rounded text-[10px] font-medium">${c.status}</span></td>
+                  <td class="py-3 px-2 text-xs ${c.comarcaEscolhida ? 'text-blue-400 font-semibold' : 'text-slate-600'}">${c.comarcaEscolhida || '—'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div class="grid lg:grid-cols-3 gap-6">
+        ${renderCotaReport('Ampla', 'Ampla Concorrência')}
+        ${renderCotaReport('PN', 'Pretos e Negros (PN)')}
+        ${renderCotaReport('PCD', 'Pessoas com Deficiência (PCD)')}
+      </div>
+    </div>
+  `;
+}
+
+function renderCotaReport(cotaType, title) {
+  const list = state.candidates.filter(c => c.cota === cotaType).sort((a, b) => a.classificacaoGeral - b.classificacaoGeral);
+  const sim = list.filter(c => c.status === 'Sim').length;
+  const nao = list.filter(c => c.status === 'Nao').length;
+  const talvez = list.filter(c => c.status === 'Talvez').length;
+  
+  return `
+    <div class="card-elevated p-5">
+      <h4 class="font-display text-lg font-bold text-white mb-3">${title}</h4>
+      <div class="grid grid-cols-4 gap-2 mb-4 text-center">
+        <div class="bg-slate-800 rounded p-2"><div class="text-[10px] text-slate-500">Total</div><div class="font-bold text-sm">${list.length}</div></div>
+        <div class="bg-green-900/30 rounded p-2"><div class="text-[10px] text-green-500">Sim</div><div class="font-bold text-sm text-green-400">${sim}</div></div>
+        <div class="bg-red-900/30 rounded p-2"><div class="text-[10px] text-red-500">Não</div><div class="font-bold text-sm text-red-400">${nao}</div></div>
+        <div class="bg-amber-900/30 rounded p-2"><div class="text-[10px] text-amber-500">Talvez</div><div class="font-bold text-sm text-amber-400">${talvez}</div></div>
+      </div>
+      <div class="max-h-96 overflow-y-auto border border-slate-700 rounded-lg">
+        <table class="w-full text-xs">
+          <tbody>
+            ${list.map(c => `<tr class="border-b border-slate-700 ${c.status === 'Nao' ? 'declined' : ''}"><td class="py-2 px-2 font-mono text-slate-500 w-10">${c.classificacaoGeral}º</td><td class="py-2 px-2 font-medium text-slate-300">${c.nome}</td><td class="py-2 px-2 text-right"><span class="status-${c.status.toLowerCase()} px-1.5 py-0.5 rounded text-[9px]">${c.status}</span></td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function setFilter(type, value) {
+  dashboardFilters[type] = value;
+  render();
+}
+
+function renderCharts() {
+  if (intentionsChart) { intentionsChart.destroy(); intentionsChart = null; }
+  
+  const intentions = {
+    Sim: state.candidates.filter(c => c.status === 'Sim').length,
+    Nao: state.candidates.filter(c => c.status === 'Nao').length,
+    Talvez: state.candidates.filter(c => c.status === 'Talvez').length,
+    Pendente: state.candidates.filter(c => c.status === 'Pendente').length
+  };
+  
+  const intentionsCanvas = document.getElementById('intentionsChart');
+  if (intentionsCanvas) {
+    intentionsChart = new Chart(intentionsCanvas, {
+      type: 'doughnut',
+      data: { labels: ['Sim', 'Não', 'Talvez', 'Pendente'], datasets: [{ data: [intentions.Sim, intentions.Nao, intentions.Talvez, intentions.Pendente], backgroundColor: ['#22c55e', '#ef4444', '#f59e0b', '#64748b'], borderWidth: 2, borderColor: '#1e293b' }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } }, cutout: '65%' }
+    });
+  }
+}
+
+const ADMIN_PASSWORD = 'pombos';
+
+function renderAdmin() {
+  if (!adminAuthenticated) return renderAdminLogin();
+  return renderAdminPanel();
+}
+
+function renderAdminLogin() {
+  return `
+    <div class="max-w-md mx-auto px-4 py-16 fade-in">
+      <div class="card-elevated p-8 relative overflow-hidden">
+        <div class="ornament-corner tl"></div><div class="ornament-corner tr"></div><div class="ornament-corner bl"></div><div class="ornament-corner br"></div>
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 mx-auto rounded-full bg-slate-800 flex items-center justify-center mb-3"><svg class="w-8 h-8 text-[#c9a961]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
+          <h1 class="font-display text-2xl font-bold text-white">Painel Administrativo</h1>
+        </div>
+        <div class="space-y-4">
+          <input type="password" id="adminPassword" class="input-field" placeholder="Senha de acesso" onkeydown="if(event.key==='Enter') loginAdmin()">
+          <button onclick="loginAdmin()" class="btn-primary w-full py-3 rounded-lg">Acessar</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function loginAdmin() {
+  if (document.getElementById('adminPassword').value === ADMIN_PASSWORD) { adminAuthenticated = true; showToast('Acesso liberado.', 'success'); render(); }
+  else { showToast('Senha incorreta.', 'error'); }
+}
+
+function logoutAdmin() { adminAuthenticated = false; navigate('home'); }
+
+function renderAdminPanel() {
+  return `
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+      <div class="flex items-center justify-between mb-6 flex-wrap gap-2">
+        <h1 class="font-display text-3xl font-bold text-white">Painel do Administrador</h1>
+        <button onclick="logoutAdmin()" class="btn-ghost text-sm px-4 py-2 rounded">Sair</button>
+      </div>
+      
+      <div class="card-elevated p-6 mb-6">
+        <h3 class="font-display text-lg font-bold text-white mb-4">Controle de Fases</h3>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div class="flex items-center justify-between p-4 border border-slate-700 rounded-lg">
+            <div><div class="font-semibold text-sm">Fase 1 — Intenção de Posse</div></div>
+            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" ${state.phases.phase1Open ? 'checked' : ''} onchange="togglePhase('phase1Open', this.checked)" class="sr-only peer"><div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div></label>
+          </div>
+          <div class="flex items-center justify-between p-4 border border-slate-700 rounded-lg">
+            <div><div class="font-semibold text-sm">Fase 2 — Escolha de Comarca</div></div>
+            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" ${state.phases.phase2Open ? 'checked' : ''} onchange="togglePhase('phase2Open', this.checked)" class="sr-only peer"><div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div></label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card-elevated p-6 mb-6">
+        <h3 class="font-display text-lg font-bold text-white mb-2">Exportar Relatório Completo</h3>
+        <p class="text-xs text-slate-400 mb-4">Exporta planilha CSV incluindo ordens, decisões, telefones e e-mails de todos os candidatos.</p>
+        <button onclick="exportReport()" class="btn-primary px-4 py-2 rounded">Exportar CSV Completo</button>
+      </div>
+      
+      <div class="card-elevated p-6">
+        <h3 class="font-display text-lg font-bold text-white mb-4">Gerenciar Candidatos & Contatos</h3>
+        <div class="overflow-x-auto max-h-96 overflow-y-auto border border-slate-700 rounded-lg">
+          <table class="w-full text-sm">
+            <thead><tr class="text-left text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-700 sticky top-0 bg-slate-800"><th class="py-3 px-2">Ordem</th><th class="py-3 px-2">Nome</th><th class="py-3 px-2">Cota</th><th class="py-3 px-2">Telefone</th><th class="py-3 px-2">E-mail</th><th class="py-3 px-2">Status</th></tr></thead>
+            <tbody>
+              ${state.candidates.map(c => `<tr class="border-b border-slate-700 hover:bg-slate-700/30">
+                <td class="py-2 px-2 font-mono text-xs text-slate-500">${c.classificacaoGeral}º</td>
+                <td class="py-2 px-2 font-medium text-slate-300">${c.nome}</td>
+                <td class="py-2 px-2"><span class="badge-cota-${c.cota.toLowerCase()} px-2 py-0.5 rounded text-[10px]">${c.cota}</span></td>
+                <td class="py-2 px-2 text-xs font-mono text-slate-400">${c.telefone || '—'}</td>
+                <td class="py-2 px-2 text-xs text-slate-400">${c.email || '—'}</td>
+                <td class="py-2 px-2"><select onchange="updateCandidateStatus('${c.id}', this.value)" class="text-xs border border-slate-700 rounded px-2 py-1 bg-slate-800 text-slate-300"><option value="Pendente" ${c.status === 'Pendente' ? 'selected' : ''}>Pendente</option><option value="Sim" ${c.status === 'Sim' ? 'selected' : ''}>Sim</option><option value="Nao" ${c.status === 'Nao' ? 'selected' : ''}>Não</option><option value="Talvez" ${c.status === 'Talvez' ? 'selected' : ''}>Talvez</option></select></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function togglePhase(phase, value) { updateState('phases/' + phase, value); }
+function updateCandidateStatus(id, status) { updateState(`candidates/${id}/status`, status); }
+
+function exportReport() {
+  const sorted = [...state.candidates].sort((a, b) => a.classificacaoGeral - b.classificacaoGeral);
+  const headers = ['OrdemNomeacao', 'Nome', 'Classificacao', 'Cota', 'Telefone', 'Email', 'Status', 'ComarcaEscolhida'];
+  const rows = sorted.map(c => [c.classificacaoGeral, c.nome, c.classificacao, c.cota, c.telefone || '', c.email || '', c.status, c.comarcaEscolhida || '']);
+  const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'relatorio_tjrs_chamada.csv'; a.click();
+}
+
+initApp();
+</script>
+</body>
+</html>
