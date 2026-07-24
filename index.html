@@ -2719,9 +2719,14 @@ function initApp() {
   if (db) {
     db.ref('state').once('value').then(snap => {
       const data = snap.val();
-      if (!data) {
+      if (!data || !data.candidates) {
         db.ref('state').set(state).then(() => { firebaseConnected = true; render(); });
       } else {
+        // Auto-heal corrupted Firebase arrays
+        if (!Array.isArray(data.candidates)) {
+          data.candidates = Object.values(data.candidates).filter(c => c && c.id);
+          data.candidates.sort((a,b) => a.classificacaoGeral - b.classificacaoGeral);
+        }
         state = data;
         saveLocal();
         const s = sessionStorage.getItem(SESSION_KEY);
@@ -2734,7 +2739,11 @@ function initApp() {
     db.ref('state').on('value', snap => {
       if (firebaseConnected) {
         const data = snap.val();
-        if (data) {
+        if (data && data.candidates) {
+          if (!Array.isArray(data.candidates)) {
+            data.candidates = Object.values(data.candidates).filter(c => c && c.id);
+            data.candidates.sort((a,b) => a.classificacaoGeral - b.classificacaoGeral);
+          }
           state = data;
           saveLocal();
           const s = sessionStorage.getItem(SESSION_KEY);
@@ -2755,12 +2764,22 @@ function saveLocal() {
 }
 
 function updateState(path, value) {
-  if (path.startsWith('candidates/')) { const [,id,field]=path.split('/'); const c=state.candidates.find(x=>x.id===id); if(c) c[field]=value; }
+  let dbPath = path;
+  if (path.startsWith('candidates/')) { 
+    const [,id,field]=path.split('/'); 
+    const index = state.candidates.findIndex(x=>x.id===id); 
+    if (index !== -1) {
+      state.candidates[index][field] = value;
+      dbPath = `candidates/${index}/${field}`; // Firebase requires array index, not ID
+    }
+  }
   else if (path.startsWith('phases/')) { state.phases[path.split('/')[1]] = value; }
+  
   saveLocal();
   render();
+  
   if (db && firebaseConnected) {
-    db.ref('state/'+path).set(value).catch(e => console.error(e));
+    db.ref('state/'+dbPath).set(value).catch(e => console.error(e));
   }
 }
 
