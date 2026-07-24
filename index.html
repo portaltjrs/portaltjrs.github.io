@@ -7,8 +7,8 @@
 <meta name="description" content="Portal oficial de manifestação de intenção de posse do Concurso de Oficial de Justiça do TJRS. Consulte sua posição, registre sua intenção e acompanhe o painel de chamada.">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script><link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,900&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -2619,13 +2619,27 @@
         <div class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0"><svg viewBox="0 0 40 40" class="w-6 h-6"><circle cx="20" cy="20" r="18" stroke="#c9a961" stroke-width="1" fill="none"/><text x="20" y="25" text-anchor="middle" fill="#c9a961" font-size="11" font-weight="700" font-family="Fraunces">TJ</text></svg></div>
         <div class="text-xs"><div class="text-slate-200 font-semibold">Tribunal de Justiça do Estado do Rio Grande do Sul</div><div>Portal de Chamada · Concurso de Oficial de Justiça</div></div>
       </div>
-      <div class="text-xs text-slate-500 text-center md:text-right"><div>Sistema de Gestão de Chamada</div><div>Dados armazenados localmente no seu navegador · <span id="footerStatus">Carregando...</span></div></div>
+      <div class="text-xs text-slate-500 text-center md:text-right"><div>Sistema de Gestão de Chamada</div><div><span id="footerStatus">Carregando...</span></div></div>
     </div>
   </div>
 </footer>
 
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBkiU5DEObrvwjiHQcOvWxkH7fwl6RLRQ0",
+  authDomain: "portaltjrs.firebaseapp.com",
+  databaseURL: "https://portaltjrs-default-rtdb.firebaseio.com",
+  projectId: "portaltjrs",
+  storageBucket: "portaltjrs.firebasestorage.app",
+  messagingSenderId: "387426523124",
+  appId: "1:387426523124:web:29dcae2c34d48c1ccc8ba1"
+};
+
 let db = null, firebaseConnected = false;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+} catch(e) { console.error("Erro Firebase:", e); }
 
 const SESSION_KEY = 'tjrs_portal_session';
 const LOCAL_KEY = 'tjrs_portal_state_v3';
@@ -2701,6 +2715,35 @@ function initApp() {
   const sess = sessionStorage.getItem(SESSION_KEY);
   if (sess && state.candidates.find(c => c.id === sess)) currentCandidateId = sess;
   render();
+  
+  if (db) {
+    db.ref('state').once('value').then(snap => {
+      const data = snap.val();
+      if (!data) {
+        db.ref('state').set(state).then(() => { firebaseConnected = true; render(); });
+      } else {
+        state = data;
+        saveLocal();
+        const s = sessionStorage.getItem(SESSION_KEY);
+        currentCandidateId = (s && state.candidates.find(c=>c.id===s)) ? s : null;
+        firebaseConnected = true;
+        render();
+      }
+    }).catch(e => console.error(e));
+    
+    db.ref('state').on('value', snap => {
+      if (firebaseConnected) {
+        const data = snap.val();
+        if (data) {
+          state = data;
+          saveLocal();
+          const s = sessionStorage.getItem(SESSION_KEY);
+          currentCandidateId = (s && state.candidates.find(c=>c.id===s)) ? s : null;
+          render();
+        }
+      }
+    });
+  }
 }
 
 function saveLocal() {
@@ -2714,7 +2757,11 @@ function saveLocal() {
 function updateState(path, value) {
   if (path.startsWith('candidates/')) { const [,id,field]=path.split('/'); const c=state.candidates.find(x=>x.id===id); if(c) c[field]=value; }
   else if (path.startsWith('phases/')) { state.phases[path.split('/')[1]] = value; }
-  saveLocal(); render();
+  saveLocal();
+  render();
+  if (db && firebaseConnected) {
+    db.ref('state/'+path).set(value).catch(e => console.error(e));
+  }
 }
 
 function getActiveQueue() { return (state.candidates||[]).filter(c=>c.status!=='Nao'&&!c.comarcaEscolhida).sort((a,b)=>a.classificacaoGeral-b.classificacaoGeral); }
