@@ -27,7 +27,7 @@ function Home() {
       <section className="bg-gradient-to-b from-primary/10 to-transparent">
         <div className="mx-auto max-w-5xl px-4 py-14 sm:py-20">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+            <div className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               Concurso Oficial de Justiça — TJRS
             </div>
             <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
@@ -36,19 +36,19 @@ function Home() {
             <p className="mt-4 text-base text-muted-foreground sm:text-lg">
               Portal para gerenciar, com transparência, a intenção de posse e a
               escolha de comarcas dos candidatos aprovados a partir da{" "}
-              <strong>posição 200</strong>. A fila é atualizada em tempo real
+              <strong className="text-foreground">posição 200</strong>. A fila é atualizada em tempo real
               conforme os candidatos respondem.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to="/entrar"
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
               >
                 Sou candidato <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 to="/fila"
-                className="inline-flex items-center gap-2 rounded-md border border-input bg-card px-5 py-3 text-sm font-medium text-foreground hover:bg-accent"
+                className="inline-flex items-center gap-2 rounded-md border border-input bg-card px-5 py-3 text-sm font-semibold text-foreground hover:bg-accent"
               >
                 Ver fila pública
               </Link>
@@ -90,11 +90,11 @@ function FeatureCard({
   desc: string;
 }) {
   return (
-    <div className="rounded-lg border bg-card p-5 shadow-sm">
+    <div className="rounded-lg border bg-card p-5 shadow-sm transition-all hover:border-primary/30">
       <div className="mb-3 inline-flex rounded-md bg-primary/10 p-2 text-primary">
         {icon}
       </div>
-      <div className="text-sm font-semibold text-foreground">{title}</div>
+      <div className="text-sm font-bold text-foreground">{title}</div>
       <div className="mt-1 text-sm text-muted-foreground">{desc}</div>
     </div>
   );

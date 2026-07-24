@@ -10,15 +10,15 @@ export function SiteHeader() {
             <Scale className="h-5 w-5" aria-hidden />
           </div>
           <div>
-            <div className="text-xs uppercase tracking-wider opacity-80">
+            <div className="text-xs font-medium uppercase tracking-wider text-primary-foreground/90">
               TJRS · Oficial de Justiça
             </div>
-            <div className="text-base font-semibold leading-tight">
+            <div className="text-base font-semibold leading-tight text-primary-foreground">
               Chamada e Escolha de Comarcas
             </div>
           </div>
         </Link>
-        <nav className="flex flex-wrap items-center gap-1 text-sm">
+        <nav className="flex flex-wrap items-center gap-1 text-sm font-medium">
           <NavItem to="/">Início</NavItem>
           <NavItem to="/fila">Fila pública</NavItem>
           <NavItem to="/entrar">Sou candidato</NavItem>
@@ -32,8 +32,8 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
   return (
     <Link
       to={to}
-      className="rounded-md px-3 py-1.5 text-primary-foreground/90 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground"
-      activeProps={{ className: "bg-primary-foreground/15 text-primary-foreground" }}
+      className="rounded-md px-3 py-1.5 text-primary-foreground/90 transition-colors hover:bg-primary-foreground/15 hover:text-primary-foreground"
+      activeProps={{ className: "bg-primary-foreground/20 text-primary-foreground font-semibold" }}
       activeOptions={{ exact: true }}
     >
       {children}
