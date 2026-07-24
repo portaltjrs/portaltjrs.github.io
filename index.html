@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TJRS · Portal de Chamada | Oficial de Justiça</title>
-<meta name="description" content="Sistema oficial de gestão da chamada do Concurso de Oficial de Justiça do TJRS. Manifeste sua intenção de posse e acompanhe a fila em tempo real.">
+<title>Portal TJRS · Chamada Oficial de Justiça</title>
+<meta name="description" content="Portal oficial de manifestação de intenção de posse do Concurso de Oficial de Justiça do TJRS. Consulte sua posição, registre sua intenção e acompanhe o painel de chamada.">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,900&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -2620,28 +2619,13 @@
         <div class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0"><svg viewBox="0 0 40 40" class="w-6 h-6"><circle cx="20" cy="20" r="18" stroke="#c9a961" stroke-width="1" fill="none"/><text x="20" y="25" text-anchor="middle" fill="#c9a961" font-size="11" font-weight="700" font-family="Fraunces">TJ</text></svg></div>
         <div class="text-xs"><div class="text-slate-200 font-semibold">Tribunal de Justiça do Estado do Rio Grande do Sul</div><div>Portal de Chamada · Concurso de Oficial de Justiça</div></div>
       </div>
-      <div class="text-xs text-slate-500 text-center md:text-right"><div>Sistema de Gestão de Chamada</div><div>Dados em tempo real · <span id="footerStatus">Carregando...</span></div></div>
+      <div class="text-xs text-slate-500 text-center md:text-right"><div>Sistema de Gestão de Chamada</div><div>Dados armazenados localmente no seu navegador · <span id="footerStatus">Carregando...</span></div></div>
     </div>
   </div>
 </footer>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXX",
-  authDomain: "seu-projeto.firebaseapp.com",
-  databaseURL: "https://seu-projeto-default-rtdb.firebaseio.com",
-  projectId: "seu-projeto",
-  storageBucket: "seu-projeto.appspot.com",
-  messagingSenderId: "XXXXXXXXXXXX",
-  appId: "1:XXXXXXXXXXXX:web:XXXXXXXXXXXX"
-};
 let db = null, firebaseConnected = false;
-try {
-  if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('XXXX')) {
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-  }
-} catch(e) { console.error("Firebase:", e); }
 
 const SESSION_KEY = 'tjrs_portal_session';
 const LOCAL_KEY = 'tjrs_portal_state_v3';
@@ -2687,18 +2671,14 @@ function parseData() {
       }
     });
 
-  // BUG FIX: preserve phases correctly using a local variable
   let restoredPhases = { phase1Open: true, phase2Open: false };
 
   try {
     const saved = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null');
     if (saved && saved.candidates) {
-      // BUG FIX: track which candidate IDs have already been restored
-      // Old localStorage had DUPLICATE candidate entries; the second copy
-      // would silently overwrite the user's updated status back to 'Pendente'.
       const restoredIds = new Set();
       saved.candidates.forEach(s => {
-        if (!s.id || restoredIds.has(s.id)) return; // skip duplicates — first entry wins
+        if (!s.id || restoredIds.has(s.id)) return; 
         const c = candidates.find(x => x.id === s.id);
         if (c) {
           restoredIds.add(s.id);
@@ -2710,7 +2690,7 @@ function parseData() {
       });
       if (saved.phases) restoredPhases = saved.phases;
     }
-  } catch(e) { console.error('Erro ao restaurar dados locais:', e); }
+  } catch(e) {}
 
   candidates.sort((a,b) => a.classificacaoGeral - b.classificacaoGeral);
   return { candidates, comarcas: [], phases: restoredPhases };
@@ -2721,23 +2701,12 @@ function initApp() {
   const sess = sessionStorage.getItem(SESSION_KEY);
   if (sess && state.candidates.find(c => c.id === sess)) currentCandidateId = sess;
   render();
-  if (db) {
-    db.ref('state').once('value').then(snap => {
-      const data = snap.val();
-      if (!data) { db.ref('state').set(state).then(() => { firebaseConnected = true; }); }
-      else { state = data; saveLocal(); const s = sessionStorage.getItem(SESSION_KEY); currentCandidateId = (s && state.candidates.find(c=>c.id===s)) ? s : null; render(); firebaseConnected = true; }
-    }).catch(e => console.error(e));
-    db.ref('state').on('value', snap => {
-      if (firebaseConnected) { const data = snap.val(); if(data){ state=data; saveLocal(); const s=sessionStorage.getItem(SESSION_KEY); currentCandidateId=(s&&state.candidates.find(c=>c.id===s))?s:null; render(); } }
-    });
-  }
 }
 
 function saveLocal() {
   try {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
   } catch(e) {
-    console.error('Erro ao salvar:', e);
     showToast('⚠️ Erro ao salvar seus dados. Verifique o armazenamento do navegador.', 'error');
   }
 }
@@ -2746,7 +2715,6 @@ function updateState(path, value) {
   if (path.startsWith('candidates/')) { const [,id,field]=path.split('/'); const c=state.candidates.find(x=>x.id===id); if(c) c[field]=value; }
   else if (path.startsWith('phases/')) { state.phases[path.split('/')[1]] = value; }
   saveLocal(); render();
-  if (db && firebaseConnected) db.ref('state/'+path).set(value).catch(e=>console.error(e));
 }
 
 function getActiveQueue() { return (state.candidates||[]).filter(c=>c.status!=='Nao'&&!c.comarcaEscolhida).sort((a,b)=>a.classificacaoGeral-b.classificacaoGeral); }
@@ -2828,7 +2796,7 @@ function renderHome() {
           <div class="text-center mb-6">
             <div class="inline-flex items-center gap-3 text-xs text-slate-500 uppercase tracking-wider font-semibold mb-3"><span class="w-8 h-px bg-[#c9a961]"></span>Acesso Individual<span class="w-8 h-px bg-[#c9a961]"></span></div>
             <h2 class="font-display text-xl sm:text-2xl font-bold text-white">Identifique-se para acessar</h2>
-            <p class="text-sm text-slate-400 mt-2">No primeiro acesso, você cadastrará seu telefone como senha pessoal.</p>
+            <p class="text-sm text-slate-400 mt-2">Busque seu nome na lista abaixo. No primeiro acesso, você cadastra seu telefone como senha pessoal.</p>
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Buscar por nome ou número de classificação</label>
