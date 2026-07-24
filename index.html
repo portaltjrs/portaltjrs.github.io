@@ -2679,27 +2679,41 @@ function parseData() {
       if (p.length >= 5) {
         const [, , ordemStr, nome, cotaRaw] = p;
         const ordem = parseInt(ordemStr);
-        if (!ordem || ordem <= 0 || seenOrdens.has(ordem)) return; // deduplication by ordemGeral
+        if (!ordem || ordem <= 0 || seenOrdens.has(ordem)) return;
         seenOrdens.add(ordem);
-        // Use col[1] as classificacao (the numeric code like 152, 1453, etc.)
         const classificacao = p[1];
         const cota = cotaRaw.startsWith('PCD') ? 'PCD' : cotaRaw.startsWith('PNE') ? 'PN' : 'Ampla';
         candidates.push({ id: 'c'+ordem, classificacao, nome, cota, classificacaoGeral: ordem, status: oldIntentions[nome] || 'Pendente', telefone: '', email: '', comarcaEscolhida: null });
       }
     });
 
+  // BUG FIX: preserve phases correctly using a local variable
+  let restoredPhases = { phase1Open: true, phase2Open: false };
+
   try {
     const saved = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null');
     if (saved && saved.candidates) {
+      // BUG FIX: track which candidate IDs have already been restored
+      // Old localStorage had DUPLICATE candidate entries; the second copy
+      // would silently overwrite the user's updated status back to 'Pendente'.
+      const restoredIds = new Set();
       saved.candidates.forEach(s => {
+        if (!s.id || restoredIds.has(s.id)) return; // skip duplicates — first entry wins
         const c = candidates.find(x => x.id === s.id);
-        if (c) { if(s.telefone) c.telefone=s.telefone; if(s.email) c.email=s.email; if(s.status) c.status=s.status; if(s.comarcaEscolhida) c.comarcaEscolhida=s.comarcaEscolhida; }
+        if (c) {
+          restoredIds.add(s.id);
+          if (s.telefone) c.telefone = s.telefone;
+          if (s.email) c.email = s.email;
+          if (s.status) c.status = s.status;
+          if (s.comarcaEscolhida) c.comarcaEscolhida = s.comarcaEscolhida;
+        }
       });
-      if (saved.phases) state.phases = saved.phases;
+      if (saved.phases) restoredPhases = saved.phases;
     }
-  } catch(e) {}
+  } catch(e) { console.error('Erro ao restaurar dados locais:', e); }
+
   candidates.sort((a,b) => a.classificacaoGeral - b.classificacaoGeral);
-  return { candidates, comarcas: [], phases: { phase1Open: true, phase2Open: false } };
+  return { candidates, comarcas: [], phases: restoredPhases };
 }
 
 function initApp() {
@@ -2719,7 +2733,14 @@ function initApp() {
   }
 }
 
-function saveLocal() { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch(e) {} }
+function saveLocal() {
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+  } catch(e) {
+    console.error('Erro ao salvar:', e);
+    showToast('⚠️ Erro ao salvar seus dados. Verifique o armazenamento do navegador.', 'error');
+  }
+}
 
 function updateState(path, value) {
   if (path.startsWith('candidates/')) { const [,id,field]=path.split('/'); const c=state.candidates.find(x=>x.id===id); if(c) c[field]=value; }
