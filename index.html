@@ -2,9 +2,12 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Portal TJRS · Chamada Oficial de Justiça</title>
 <meta name="description" content="Portal oficial de manifestação de intenção de posse do Concurso de Oficial de Justiça do TJRS. Consulte sua posição, registre sua intenção e acompanhe o painel de chamada.">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -2619,7 +2622,7 @@
         <div class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0"><svg viewBox="0 0 40 40" class="w-6 h-6"><circle cx="20" cy="20" r="18" stroke="#c9a961" stroke-width="1" fill="none"/><text x="20" y="25" text-anchor="middle" fill="#c9a961" font-size="11" font-weight="700" font-family="Fraunces">TJ</text></svg></div>
         <div class="text-xs"><div class="text-slate-200 font-semibold">Tribunal de Justiça do Estado do Rio Grande do Sul</div><div>Portal de Chamada · Concurso de Oficial de Justiça</div></div>
       </div>
-      <div class="text-xs text-slate-500 text-center md:text-right"><div>Sistema de Gestão de Chamada</div><div><span id="footerStatus">Carregando...</span></div></div>
+      <div class="text-xs text-slate-500 text-center md:text-right"><div>Sistema de Gestão de Chamada (v2.0)</div><div><span id="footerStatus">Carregando...</span></div></div>
     </div>
   </div>
 </footer>
@@ -2717,12 +2720,11 @@ function initApp() {
   render();
   
   if (db) {
-    db.ref('state').once('value').then(snap => {
+    db.ref('state').on('value', snap => {
       const data = snap.val();
       if (!data || !data.candidates) {
         db.ref('state').set(state).then(() => { firebaseConnected = true; render(); });
       } else {
-        // Auto-heal corrupted Firebase arrays
         if (!Array.isArray(data.candidates)) {
           data.candidates = Object.values(data.candidates).filter(c => c && c.id);
           data.candidates.sort((a,b) => a.classificacaoGeral - b.classificacaoGeral);
@@ -2734,23 +2736,10 @@ function initApp() {
         firebaseConnected = true;
         render();
       }
-    }).catch(e => console.error(e));
-    
-    db.ref('state').on('value', snap => {
-      if (firebaseConnected) {
-        const data = snap.val();
-        if (data && data.candidates) {
-          if (!Array.isArray(data.candidates)) {
-            data.candidates = Object.values(data.candidates).filter(c => c && c.id);
-            data.candidates.sort((a,b) => a.classificacaoGeral - b.classificacaoGeral);
-          }
-          state = data;
-          saveLocal();
-          const s = sessionStorage.getItem(SESSION_KEY);
-          currentCandidateId = (s && state.candidates.find(c=>c.id===s)) ? s : null;
-          render();
-        }
-      }
+    }, (error) => {
+      console.error("Firebase listen error:", error);
+      firebaseConnected = false;
+      render();
     });
   }
 }
