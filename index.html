@@ -2657,6 +2657,13 @@ let currentCandidateId = null;
 let adminAuthenticated = false;
 
 function cleanPhone(p) { return p ? p.replace(/\D/g, '') : ''; }
+function formatPhone(p) {
+  if (!p) return '';
+  p = p.replace(/\D/g, '');
+  if (p.length === 11) return `(${p.slice(0,2)}) ${p.slice(2,7)}-${p.slice(7)}`;
+  if (p.length === 10) return `(${p.slice(0,2)}) ${p.slice(2,6)}-${p.slice(6)}`;
+  return p;
+}
 
 function parseData() {
   const oldIntentions = {};
@@ -3431,7 +3438,7 @@ function updateCandidateStatus(id, status) { updateState(`candidates/${id}/statu
 
 function exportReport() {
   const rows = [...state.candidates].sort((a,b)=>a.classificacaoGeral-b.classificacaoGeral).map(c=>
-    [c.classificacaoGeral,c.classificacao,c.nome,c.cota,c.telefone||'',c.email||'',c.status,c.comarcaEscolhida||'']);
+    [c.classificacaoGeral,c.classificacao,c.nome,c.cota,formatPhone(c.telefone),c.email||'',c.status,c.comarcaEscolhida||'']);
   const csv = ['OrdemNomeacao;Classificacao;Nome;Cota;Telefone;Email;Status;Comarca',
     ...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';'))].join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'})); a.download='relatorio_tjrs_completo.csv'; a.click();
@@ -3441,7 +3448,7 @@ function exportReport() {
 function exportPendentes() {
   const pend = [...state.candidates].filter(c=>c.status==='Pendente').sort((a,b)=>a.classificacaoGeral-b.classificacaoGeral);
   if (!pend.length) { showToast('Nenhum pendente!','info'); return; }
-  const rows = pend.map(c=>[c.classificacaoGeral,c.classificacao,c.nome,c.cota,c.telefone||'',c.email||'']);
+  const rows = pend.map(c=>[c.classificacaoGeral,c.classificacao,c.nome,c.cota,formatPhone(c.telefone),c.email||'']);
   const csv = ['OrdemNomeacao;Classificacao;Nome;Cota;Telefone;Email',
     ...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';'))].join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'})); a.download=`pendentes_tjrs_${pend.length}.csv`; a.click();
